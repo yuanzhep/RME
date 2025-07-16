@@ -1,6 +1,5 @@
 """
 Data Augmentation Transforms for Radio Map Prediction
-Supports both input (3-channel scene graphs) and output (grayscale pathloss maps)
 """
 
 import cv2
