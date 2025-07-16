@@ -1,6 +1,3 @@
-# VQGAN Pretraining Configuration
-# Radio Map Prediction with Data Augmentation
-
 # Model parameters
 input_channels: 3
 output_channels: 1
@@ -16,8 +13,8 @@ num_epochs: 100
 device: "cuda"  # "cuda" or "cpu"
 
 # Data paths (update these to your actual paths)
-input_path: "/blue/jie.xu/pengy1/AR_RM_backup/ICASSP2025_Dataset/Inputs/Task_1_ICASSP"
-output_path: "/blue/jie.xu/pengy1/AR_RM_backup/ICASSP2025_Dataset/Outputs/Task_1_ICASSP"
+input_path: "AR_RM_backup/ICASSP2025_Dataset/Inputs/Task_1_ICASSP"
+output_path: "AR_RM_backup/ICASSP2025_Dataset/Outputs/Task_1_ICASSP"
 
 # Output directories
 checkpoint_dir: "./checkpoints"
