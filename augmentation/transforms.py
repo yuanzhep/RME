@@ -1,5 +1,5 @@
 """
-Data Augmentation Transforms for Radio Map Prediction
+Data Augmentation
 """
 
 import cv2
