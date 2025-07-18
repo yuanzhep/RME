@@ -1,0 +1,28 @@
+Log started at 2025-07-16 18:13:35
+Parameters: K=1, Query=B24_Ant1_f1_S22.png
+Device: cuda
+--------------------------------------------------
+=== RIPPLE In-Context Learning for Radio Map Estimation ===
+
+[1] Loaded models...
+Detected embedding dimension: 64
+Loaded VQGAN weights from models/pytorch_model.bin
+
+[2] Loading prompt examples (K=1)...
+
+[3] Loading and encoding query...
+
+[4] Creating ICL sequence...
+
+[5] Generating output tokens with LLaMA...
+
+[6] Decoding prediction...
+
+[7] Saving results...
+RMSE: 15.47 dB
+Saved prediction: prediction/prediction_K1_B24_Ant1_f1_S22.png
+
+=== ICL Prediction Complete ===
+Log saved to: log/ripple_K1_B24_Ant1_f1_S22_20250716_181335.log
+--------------------------------------------------
+Log ended at 2025-07-16 18:14:07
