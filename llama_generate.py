@@ -3,13 +3,11 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM  # Load models
 
-# ========== 配置路径 ==========
-model_dir = "/home/pengy1/RME/llama"  # 这里包含 config.json + pytorch_model.bin
-input_path = "/home/pengy1/RME/data0/llama_input/prompt_sequence.npy"
+model_dir = ".../RME/llama" 
+input_path = ".../llama_input/prompt_sequence.npy"
 save_path = "/home/pengy1/RME/data0/prediction/B25_Ant1_f1_S47_pred_tokens.npy"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-# ========== 加载模型 ==========
 print("Loading InternLM model (HuggingFace-style)...")
 tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
@@ -46,3 +44,4 @@ H = W = int(np.sqrt(max_new))
 gen_map = generated.reshape(H, W)
 np.save(save_path, gen_map)
 print(f"Prediction saved to: {save_path}")
+
