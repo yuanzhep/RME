@@ -9,8 +9,8 @@ from utils.token_helper import create_interleaved_tokens
 DEVICE = "cuda"
 VQGAN_CONFIG = "models/config.json"
 VQGAN_WEIGHTS = "models/pytorch_model.bin"
-LLAMA_CONFIG = "models/llama300m_config.json"
-LLAMA_WEIGHTS = "models/llama300m.bin"
+LLAMA_CONFIG = "models/llama7b_config.json"
+LLAMA_WEIGHTS = "models/llama7b.bin"
 INPUT_DIR = "data0/input"
 OUTPUT_DIR = "data0/output"
 QUERY_NAME = "B25_Ant1_f1_S47"
@@ -65,3 +65,4 @@ os.makedirs("predictions", exist_ok=True)
 save_path = os.path.join("predictions", f"pred_{QUERY_NAME}.png")
 recon_img.save(save_path)
 print(f"Prediction saved to {save_path}")
+
