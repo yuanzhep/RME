@@ -46,7 +46,6 @@ def close_logging():
         log_print.log_file = None
 
 def load_safetensors_sharded(model_dir: str) -> dict:
-    """Load sharded safetensors model files"""
     index_file = os.path.join(model_dir, "model.safetensors.index.json")
     
     if not os.path.exists(index_file):
@@ -74,24 +73,17 @@ def load_safetensors_sharded(model_dir: str) -> dict:
 
 class Config:
     def __init__(self, K=2, query_file=None):
-        self.vqgan_config = "models/config.json"
-        self.vqgan_weights = "models/pytorch_model.bin"
-        
+        self.vqgan_config = ".../models/config.json"
+        self.vqgan_weights = ".../models/pytorch_model.bin"  
         # Llama 7B
-        self.llama_config = "models/LVM_ckpts/config.json"
-        self.llama_model_dir = "models/LVM_ckpts"  
-        
-        self.prompt_input_dir = "prompts/Inputs"
-        self.prompt_output_dir = "prompts/Outputs"
-        self.query_dir = "queries"
-        self.ground_truth_dir = "dataset/pathloss"
-        self.prediction_output_dir = "prediction"
-        
+        self.llama_config = ".../models/LVM_ckpts/config.json"
+        self.llama_model_dir = ".../models/LVM_ckpts"  
+        self.prompt_input_dir = ".../prompts/Inputs"
+        self.prompt_output_dir = ".../prompts/Outputs"
+        self.query_dir = ".../queries"
+        self.prediction_output_dir = ".../prediction"
         self.K = K  
         self.query_file = query_file
-        if self.query_file is None:
-            self.query_file = "B24_Ant1_f1_S0.png"
-        
         self.available_prompts = self.get_available_prompts()
         self.selected_prompts = self.available_prompts[:self.K] if self.K > 0 else []
         self.image_size = 256
@@ -102,24 +94,24 @@ class Config:
         self.sep_token = 1
         self.end_token = 2
     
-    def get_available_prompts(self):
-        available = []
-        if os.path.exists(self.prompt_input_dir):
-            input_files = [f.replace('.png', '') for f in os.listdir(self.prompt_input_dir) if f.endswith('.png')]
-            for name in input_files:
-                input_exists = os.path.exists(os.path.join(self.prompt_input_dir, name + '.png'))
-                output_exists = os.path.exists(os.path.join(self.prompt_output_dir, name + '.png'))
-                if input_exists and output_exists:
-                    available.append(name)
-        fallback_prompts = ["B25_Ant1_f1_S40", "B25_Ant1_f1_S45", "B25_Ant1_f1_S42", "B25_Ant1_f1_S43", "B25_Ant1_f1_S44", "B25_Ant1_f1_S41", "B25_Ant1_f1_S46", "B25_Ant1_f1_S47", "B25_Ant1_f1_S48", "B25_Ant1_f1_S49"]
-        while len(available) < max(10, self.K):
-            for fallback in fallback_prompts:
-                if fallback not in available:
-                    available.append(fallback)
-                    if len(available) >= max(10, self.K):
-                        break
+    # def get_available_prompts(self):
+    #     available = []
+    #     if os.path.exists(self.prompt_input_dir):
+    #         input_files = [f.replace('.png', '') for f in os.listdir(self.prompt_input_dir) if f.endswith('.png')]
+    #         for name in input_files:
+    #             input_exists = os.path.exists(os.path.join(self.prompt_input_dir, name + '.png'))
+    #             output_exists = os.path.exists(os.path.join(self.prompt_output_dir, name + '.png'))
+    #             if input_exists and output_exists:
+    #                 available.append(name)
+    #     fallback_prompts = ["B25_Ant1_f1_S40", "B25_Ant1_f1_S45", "B25_Ant1_f1_S42", "B25_Ant1_f1_S43", "B25_Ant1_f1_S44", "B25_Ant1_f1_S41", "B25_Ant1_f1_S46", "B25_Ant1_f1_S47", "B25_Ant1_f1_S48", "B25_Ant1_f1_S49"]
+    #     while len(available) < max(10, self.K):
+    #         for fallback in fallback_prompts:
+    #             if fallback not in available:
+    #                 available.append(fallback)
+    #                 if len(available) >= max(10, self.K):
+    #                     break
         
-        return available
+    #     return available
 
 class VQGAN(nn.Module):
     def __init__(self, config_path: str, weights_path: str):
@@ -288,15 +280,11 @@ class SimpleLLaMA(nn.Module):
             log_print(f"Warning: Could not load Llama 7B weights: {e}")
     
     def _load_llama_weights(self, state_dict: dict):
-        """Map Llama weights to our simplified model structure"""
         model_dict = self.state_dict()
-        
         weight_mapping = {}
-        
         # Embedding layers
         if "model.embed_tokens.weight" in state_dict:
             weight_mapping["embedding.weight"] = "model.embed_tokens.weight"
-        
         # Transformer layers
         for i in range(self.config["num_layers"]):
             # Self attention
@@ -311,14 +299,12 @@ class SimpleLLaMA(nn.Module):
             weight_mapping[f"layers.{i}.ln1.weight"] = f"model.layers.{i}.input_layernorm.weight"
             weight_mapping[f"layers.{i}.ln2.weight"] = f"model.layers.{i}.post_attention_layernorm.weight"
         
-        # Final layer norm and output head
         if "model.norm.weight" in state_dict:
             weight_mapping["ln_f.weight"] = "model.norm.weight"
         
         if "lm_head.weight" in state_dict:
             weight_mapping["head.weight"] = "lm_head.weight"
         
-        # Load compatible weights
         filtered_dict = {}
         for model_key, llama_key in weight_mapping.items():
             if llama_key in state_dict and model_key in model_dict:
@@ -330,30 +316,22 @@ class SimpleLLaMA(nn.Module):
                 else:
                     log_print(f"Shape mismatch for {model_key}: {llama_weight.shape} vs {model_weight_shape}")
         
-        # Update model with compatible weights
         model_dict.update(filtered_dict)
         self.load_state_dict(model_dict, strict=False)
         log_print(f"Loaded {len(filtered_dict)} compatible weight tensors")
     
     def forward(self, input_ids):
         B, T = input_ids.shape
-        
         input_ids = torch.clamp(input_ids, 0, self.config["vocab_size"] - 1)
-        
         tok_emb = self.embedding(input_ids)
-        
         pos_ids = torch.arange(T, device=input_ids.device).unsqueeze(0).expand(B, T)
         pos_ids = torch.clamp(pos_ids, 0, self.config["max_seq_len"] - 1)
         pos_emb = self.pos_embedding(pos_ids)
-        
         x = tok_emb + pos_emb
-        
         for layer in self.layers:
             x = layer(x)
-        
         x = self.ln_f(x)
         logits = self.head(x)
-        
         return logits
 
 class RMSNorm(nn.Module):
@@ -387,16 +365,12 @@ class TransformerLayer(nn.Module):
     def forward(self, x):
         seq_len = x.size(1)
         causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
-        
-        # Pre-norm architecture (typical for Llama)
         normed_x = self.ln1(x)
         attn_out, _ = self.attention(normed_x, normed_x, normed_x, attn_mask=causal_mask)
         x = x + attn_out
-        
         normed_x = self.ln2(x)
         ff_out = self.feed_forward(normed_x)
-        x = x + ff_out
-        
+        x = x + ff_out   
         return x
 
 def load_and_preprocess_image(path: str, target_size: int = 256, force_channels: int = None) -> torch.Tensor:
@@ -433,11 +407,9 @@ def load_and_preprocess_image(path: str, target_size: int = 256, force_channels:
 def create_icl_sequence(input_tokens_list: List[torch.Tensor], 
                        output_tokens_list: List[torch.Tensor],
                        query_tokens: torch.Tensor,
-                       max_length: int = 3500) -> torch.Tensor:  # Increased for 7B model
-    
+                       max_length: int = 3500) -> torch.Tensor: 
     sequence = []
-    vocab_size = 32000 
-    
+    vocab_size = 8192 
     total_prompt_tokens = sum(len(inp) + len(out) + 2 for inp, out in zip(input_tokens_list, output_tokens_list))
     query_length = len(query_tokens) + 1
     expected_total = total_prompt_tokens + query_length
@@ -480,10 +452,8 @@ def generate_output_tokens(model: SimpleLLaMA, input_sequence: torch.Tensor,
     model.eval()
     generated_tokens = []
     vocab_size = model.config["vocab_size"]
-    
     current_seq = input_sequence.unsqueeze(0)
     current_seq = torch.clamp(current_seq, 0, vocab_size - 1)
-    
     num_tokens = min(num_tokens, 256)  
     
     with torch.no_grad():
@@ -510,18 +480,10 @@ def generate_output_tokens(model: SimpleLLaMA, input_sequence: torch.Tensor,
                     
                 next_token = torch.multinomial(probs, 1)
                 next_token_val = next_token.item()
-                next_token_val = max(10, min(next_token_val, safe_upper_bound))
                 next_token = torch.tensor([next_token_val], device=DEVICE)
                 current_seq = torch.cat([current_seq, next_token.unsqueeze(0)], dim=1)
                 generated_tokens.append(next_token_val)
-                if (step + 1) % max(5, 15 - K) == 0:  
-                    torch.cuda.empty_cache()
-                    
-            except RuntimeError as e:
-                log_print(f"Warning: Error during generation at step {step}: {e}")
-                safe_token = 100 + (step % 100)
-                generated_tokens.append(safe_token)
-    
+                
     return torch.tensor(generated_tokens, dtype=torch.long, device=DEVICE)
 
 def main():
@@ -531,55 +493,37 @@ def main():
     args = parser.parse_args()
     log_filename = setup_logging(args.K, args.query)
     config = Config(K=args.K, query_file=args.query)
-    log_print("=== RIPPLE In-Context Learning for Radio Map Estimation (Llama 7B) ===")
+    log_print("=== RIPPLE (Llama 7B) ===")
     log_print("\n[1] Loading models...")
     vqgan = VQGAN(config.vqgan_config, config.vqgan_weights).to(DEVICE).eval()
-    
-    # Load Llama 7B model
     llama = SimpleLLaMA(config.llama_config, config.llama_model_dir).to(DEVICE).eval()
-    
     os.makedirs(config.prediction_output_dir, exist_ok=True)
     log_print(f"\n[2] Loading prompt examples (K={config.K})...")
     prompt_input_tokens = []
     prompt_output_tokens = []
-    
     for i, name in enumerate(config.selected_prompts):
         input_path = os.path.join(config.prompt_input_dir, name + ".png")
         output_path = os.path.join(config.prompt_output_dir, name + ".png")
-        
         input_img = load_and_preprocess_image(input_path, config.image_size, force_channels=3)
         output_img = load_and_preprocess_image(output_path, config.image_size, force_channels=3)
-        
         with torch.no_grad():
             _, _, input_tokens = vqgan.encode(input_img)
             _, _, output_tokens = vqgan.encode(output_img)
-        
         input_tokens = input_tokens.view(-1)
         output_tokens = output_tokens.view(-1)
-        
         input_tokens = torch.clamp(input_tokens, 0, 8191)
         output_tokens = torch.clamp(output_tokens, 0, 8191)
-        
         prompt_input_tokens.append(input_tokens)
         prompt_output_tokens.append(output_tokens)
-        
         torch.cuda.empty_cache()
-    
     log_print(f"\n[3] Loading and encoding query...")
     query_path = os.path.join(config.query_dir, config.query_file)
     query_img = load_and_preprocess_image(query_path, config.image_size, force_channels=3)
-    
     with torch.no_grad():
         _, _, query_tokens = vqgan.encode(query_img)
-    
     query_tokens = query_tokens.view(-1)
     query_tokens = torch.clamp(query_tokens, 0, 8191)
     log_print("\n[4] Creating ICL sequence...")
-    if config.K > 0:
-        icl_sequence = create_icl_sequence(prompt_input_tokens, prompt_output_tokens, query_tokens)
-    else:
-        query_tokens_clamped = torch.clamp(query_tokens, 10, 8181)
-        icl_sequence = torch.cat([query_tokens_clamped, torch.tensor([1], device=DEVICE)])
     log_print("\n[5] Generating output tokens with LLaMA 7B...")
     predicted_tokens = generate_output_tokens(llama, icl_sequence, num_tokens=128, K=config.K)
     torch.cuda.empty_cache()
@@ -603,21 +547,9 @@ def main():
         pred_array = np.random.rand(256, 256, 3)
         decoded_prediction = torch.from_numpy(pred_array).permute(2, 0, 1).unsqueeze(0)
     log_print("\n[7] Saving results...")
-    
-    if config.K == 0:
-        log_print("RMSE: nan")
-    else:
-        log_print(f"RMSE: {rmse:.2f} dB")
     query_name_no_ext = config.query_file.replace('.png', '')
     final_prediction_name = f"prediction_K{config.K}_{query_name_no_ext}.png"
     final_prediction_path = os.path.join(config.prediction_output_dir, final_prediction_name)
-    
-    if os.path.exists(prediction_path):
-        import shutil
-        shutil.copy2(prediction_path, final_prediction_path)
-        log_print(f"Saved prediction: {final_prediction_path}")
-    else:
-        log_print(f"Warning: Could not save prediction to {final_prediction_path}")
     log_print("\n=== ICL Prediction Complete (Llama 7B) ===")
     log_print(f"Log saved to: {log_filename}")
     
@@ -626,4 +558,5 @@ def main():
     return decoded_prediction
 
 if __name__ == "__main__":
+
     result = main()
