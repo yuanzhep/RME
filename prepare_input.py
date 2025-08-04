@@ -80,4 +80,3 @@ token_sequence.extend(query_tokens.tolist())
 
 np.save(save_path, np.array(token_sequence, dtype=np.int32))
 print(f"Saved LLaMA input sequence to {save_path}")
-
