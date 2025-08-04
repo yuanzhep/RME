@@ -56,10 +56,10 @@ def test_individual_transforms():
                 title=f"{name} Augmentation Test"
             )
             
-            print(f"    ✓ {name} test passed")
+            print(f"    {name} test passed")
             
         except Exception as e:
-            print(f"    ✗ {name} test failed: {str(e)}")
+            print(f"    {name} test failed: {str(e)}")
     
     print("Individual transform tests completed!\n")
 
@@ -100,10 +100,10 @@ def test_composed_transforms():
                 title=f"{name} Preset Augmentation Test"
             )
             
-            print(f"    ✓ {name} preset test passed")
+            print(f"    {name} preset test passed")
             
         except Exception as e:
-            print(f"    ✗ {name} preset test failed: {str(e)}")
+            print(f"    {name} preset test failed: {str(e)}")
     
     print("Composed transform tests completed!\n")
 
@@ -169,10 +169,10 @@ def test_dataset_with_synthetic_data():
             print(f"    Filenames: {batch_filenames}")
             break
         
-        print("    ✓ Dataset test passed")
+        print("    Dataset test passed")
         
     except Exception as e:
-        print(f"    ✗ Dataset test failed: {str(e)}")
+        print(f"    Dataset test failed: {str(e)}")
         import traceback
         traceback.print_exc()
     
@@ -192,7 +192,7 @@ def test_with_real_data(input_path, output_path):
     print(f"  Output path: {output_path}")
     
     if not os.path.exists(input_path) or not os.path.exists(output_path):
-        print("  ⚠ Real data paths not found, skipping real data test")
+        print("  Real data paths not found, skipping real data test")
         return
     
     try:
@@ -239,12 +239,12 @@ def test_with_real_data(input_path, output_path):
                 )
                 
             except Exception as viz_e:
-                print(f"    Visualization failed: {str(viz_e)}")
+                print(f"   Visualization failed: {str(viz_e)}")
         
-        print("    ✓ Real data test passed")
+        print("    Real data test passed")
         
     except Exception as e:
-        print(f"    ✗ Real data test failed: {str(e)}")
+        print(f"    Real data test failed: {str(e)}")
         import traceback
         traceback.print_exc()
     
@@ -315,36 +315,18 @@ def test_dataloader_creation():
 
 
 def main():
-    """Run all tests"""
     print("=" * 60)
     print("RADIO MAP DATA AUGMENTATION TEST SUITE")
     print("=" * 60)
-    
-    # Test 1: Individual transforms
     test_individual_transforms()
-    
-    # Test 2: Composed transforms
     test_composed_transforms()
-    
-    # Test 3: Dataset with synthetic data
     test_dataset_with_synthetic_data()
-    
-    # Test 4: Dataloader creation
     test_dataloader_creation()
     
-    # Test 5: Real data (if available)
-    real_input_path = "/blue/jie.xu/pengy1/AR_RM_backup/ICASSP2025_Dataset/Inputs/Task_1_ICASSP"
-    real_output_path = "/blue/jie.xu/pengy1/AR_RM_backup/ICASSP2025_Dataset/Outputs/Task_1_ICASSP"
+    # real_input_path = ".../"
+    # real_output_path = ".../"
     test_with_real_data(real_input_path, real_output_path)
-    
-    print("=" * 60)
-    print("ALL TESTS COMPLETED!")
-    print("=" * 60)
-    
-    print("\nIf all tests passed, your augmentation pipeline is ready!")
-    print("You can now run the training script with:")
-    print("  python train_vqgan_pretraining.py --config config.yaml")
-
 
 if __name__ == "__main__":
+
     main()
