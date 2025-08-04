@@ -2,8 +2,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-token_freq_file = ".../RME/data1/tokens/token_frequency.txt"
-output_dir = ".../RME/data1/tokens"
+token_freq_file = ".../RME/data/tokens/token_frequency.txt"
+output_dir = ".../RME/data/tokens"
 os.makedirs(output_dir, exist_ok=True)
 
 frequencies = []
@@ -57,3 +57,4 @@ print("Analysis completed.")
 print(f"Top-k summary saved to: {txt_output_path}")
 print(f"Log-scale histogram saved to: {log_hist_output}")
 print(f"CDF curve saved to: {cdf_output}")
+
