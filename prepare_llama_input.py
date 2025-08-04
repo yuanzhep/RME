@@ -10,14 +10,14 @@ from glob import glob
 vqgan_dir = ".../RME/models"
 config_path = os.path.join(vqgan_dir, "config.json")
 ckpt_path = os.path.join(vqgan_dir, "pytorch_model.bin")
-input_dir = ".../RME/data0/input"
-output_dir = ".../RME/data0/output"
-save_path = ".../RME/data0/llama_input/prompt_sequence.npy"
+input_dir = ".../RME/data/input"
+output_dir = ".../RME/data/output"
+save_path = ".../RME/data/llama_input/prompt_sequence.npy"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-prompt_inputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
-prompt_outputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
-query_input = "B25_Ant1_f1_S47.png"
+# prompt_inputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
+# prompt_outputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
+# query_input = "B25_Ant1_f1_S47.png"
 
 with open(config_path, "r") as f:
     config = json.load(f)
@@ -80,3 +80,4 @@ token_sequence.extend(query_tokens.tolist())
 
 np.save(save_path, np.array(token_sequence, dtype=np.int32))
 print(f"Saved LLaMA input sequence to {save_path}")
+
