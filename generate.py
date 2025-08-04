@@ -1,21 +1,19 @@
 import os
 import numpy as np
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM  # Load models
+from transformers import AutoTokenizer, AutoModelForCausalLM 
 
 model_dir = ".../RME/llama" 
 input_path = ".../llama_input/prompt_sequence.npy"
 save_path = ".../prediction/B25_Ant1_f1_S47_pred_tokens.npy"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-print("Loading InternLM model (HuggingFace-style)...")
 tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(
     model_dir,
     torch_dtype=torch.float32,
     trust_remote_code=True
 ).eval()
-print("Model loaded successfully.")
+print("Model loaded.")
 
 full_seq = np.load(input_path)  # shape: [5, H, W]
 flat_seq = full_seq.reshape(full_seq.shape[0], -1)  # [5, T]
@@ -41,3 +39,4 @@ H = W = int(np.sqrt(max_new))
 gen_map = generated.reshape(H, W)
 np.save(save_path, gen_map)
 print(f"Prediction saved to: {save_path}")
+
