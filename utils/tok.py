@@ -1,16 +1,6 @@
 import torch
 
 def create_interleaved_tokens(zin_list, zout_list=None):
-    """
-    Interleave input and output tokens from prompt pairs.
-
-    Args:
-        zin_list: list of token tensors with shape (1, h, w)
-        zout_list: list of token tensors with shape (1, h, w)
-
-    Returns:
-        Flat interleaved sequence: shape [T]
-    """
     sequence = []
 
     for i, zin in enumerate(zin_list):
