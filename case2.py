@@ -9,10 +9,6 @@ from torchvision import transforms
 import random
 
 class Case2PromptRetriever:
-    """
-    Case 2: Prompt Selection for New Layout
-    """
-    
     def __init__(self, embedding_dim=512, random_state=42):
         self.embedding_dim = embedding_dim
         self.random_state = random_state
@@ -65,56 +61,6 @@ class Case2PromptRetriever:
         print(f"Created database with {len(database)} examples")
         return database
     
-    def _generate_synthetic_example(self, layout_type, layout_id):
-        """Generate synthetic radio map example for given layout type."""
-        height, width = 256, 256  # Standard size
-        
-        # Create coordinate grids
-        x_coords, y_coords = np.meshgrid(np.arange(width), np.arange(height))
-        
-        # Random transmitter position
-        tx_x, tx_y = np.random.uniform(50, width-50), np.random.uniform(50, height-50)
-        
-        # Distance channel
-        distance_map = np.sqrt((x_coords - tx_x)**2 + (y_coords - tx_y)**2)
-        
-        # Layout-specific transmittance and reflectance patterns
-        if layout_type == 'office':
-            # Office: regular grid pattern, moderate attenuation
-            transmittance_map = -5 + 2 * np.sin(x_coords/20) * np.cos(y_coords/20)
-            reflectance_map = -15 + 3 * np.sin(x_coords/30) * np.sin(y_coords/30)
-        elif layout_type == 'residential':
-            # Residential: irregular patterns, variable attenuation
-            transmittance_map = -8 + 5 * np.random.random((height, width))
-            reflectance_map = -12 + 4 * np.random.random((height, width))
-        elif layout_type == 'warehouse':
-            # Warehouse: large open areas, low attenuation
-            transmittance_map = -2 + np.random.normal(0, 1, (height, width))
-            reflectance_map = -8 + np.random.normal(0, 2, (height, width))
-        elif layout_type == 'hospital':
-            # Hospital: high attenuation due to equipment/walls
-            transmittance_map = -12 + 3 * np.random.random((height, width))
-            reflectance_map = -20 + 5 * np.random.random((height, width))
-        else:  # retail
-            # Retail: mixed patterns
-            transmittance_map = -6 + 4 * np.random.random((height, width))
-            reflectance_map = -14 + 3 * np.random.random((height, width))
-        
-        # Create input tensor
-        input_tensor = np.stack([distance_map, transmittance_map, reflectance_map], axis=2)
-        
-        distances = np.maximum(distance_map, 1.0)
-        pathloss = 30 + 25 * np.log10(distances)  # Basic propagation model
-        
-        if layout_type == 'warehouse':
-            pathloss += 5 * np.random.normal(0, 1, pathloss.shape)  
-        elif layout_type == 'hospital':
-            pathloss += 15 * np.random.normal(0, 2, pathloss.shape)  
-        else:
-            pathloss += 8 * np.random.normal(0, 1.5, pathloss.shape)  
-        
-        return input_tensor, pathloss
-    
     def compute_scene_embeddings(self, batch_size=32):
         if self.encoder is None:
             self.initialize_encoder()
@@ -145,8 +91,6 @@ class Case2PromptRetriever:
         return self.database_embeddings
     
     def _preprocess_input(self, input_tensor):
-        """Preprocess input tensor for the encoder."""
-        # Normalize each channel
         normalized = np.zeros_like(input_tensor)
         for c in range(input_tensor.shape[2]):
             channel = input_tensor[:, :, c]
@@ -183,7 +127,6 @@ class Case2PromptRetriever:
         return selected_prompts, top_k_similarities
     
     def visualize_retrieval(self, query_input, selected_prompts, similarities):
-        """Visualize the query and retrieved prompts."""
         k = len(selected_prompts)
         fig, axes = plt.subplots(2, k+1, figsize=(4*(k+1), 8))
         
@@ -235,7 +178,6 @@ class Case2PromptRetriever:
             print(f"    Reflectance mean: {stats['reflectance_mean']:.2f}")
     
     def _compute_input_statistics(self, input_tensor):
-        """Compute statistics for input tensor analysis."""
         return {
             'distance_range': (input_tensor[:, :, 0].min(), input_tensor[:, :, 0].max()),
             'transmittance_mean': input_tensor[:, :, 1].mean(),
@@ -244,26 +186,19 @@ class Case2PromptRetriever:
 
 if __name__ == "__main__":
     retriever = Case2PromptRetriever(embedding_dim=512)
-    
     print("Creating database of radio map examples...")
     database = retriever.create_database(n_layouts=50)
-    
     print("\nInitializing encoder and computing embeddings...")
     retriever.initialize_encoder()
     embeddings = retriever.compute_scene_embeddings(batch_size=16)
-    
     print("\nCreating test query for unseen layout...")
     query_input, _ = retriever._generate_synthetic_example('office', 999)
-    
     k = 3
     print(f"\nRetrieving top-{k} similar prompts...")
     selected_prompts, similarities = retriever.retrieve_top_k_prompts(query_input, k=k)
-    
     retriever.analyze_retrieval_quality(query_input, selected_prompts)
-    
     print("\nVisualizing retrieval results...")
     retriever.visualize_retrieval(query_input, selected_prompts, similarities)
-    
     print(f"\nSummary:")
     print(f"- Database size: {len(database)} examples")
     print(f"- Query embedding dimension: {embeddings.shape[1]}")
