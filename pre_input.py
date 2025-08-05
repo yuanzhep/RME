@@ -7,14 +7,15 @@ import torchvision.transforms as T
 import json
 from glob import glob
 
-vqgan_dir = ".../RME/models"
+vqgan_dir = ".../models"
 config_path = os.path.join(vqgan_dir, "config.json")
 ckpt_path = os.path.join(vqgan_dir, "pytorch_model.bin")
-input_dir = ".../RME/data/input"
-output_dir = ".../RME/data/output"
-save_path = ".../RME/data/llama_input/prompt_sequence.npy"
+input_dir = ".../data/input"
+output_dir = ".../data/output"
+save_path = ".../data/llama_input/prompt_sequence.npy"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
+# demo
 # prompt_inputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
 # prompt_outputs = ["B25_Ant1_f1_S40.png", "B25_Ant1_f1_S45.png"]
 # query_input = "B25_Ant1_f1_S47.png"
