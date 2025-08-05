@@ -7,10 +7,9 @@ from glob import glob
 from vqgan_legacy import VQModel  
 import torchvision.transforms as T
 
-vqgan_dir = ".../RME/models"
+vqgan_dir = ".../models"
 config_path = os.path.join(vqgan_dir, "config.json")
 ckpt_path = os.path.join(vqgan_dir, "pytorch_model.bin")
-
 token_dir = ".../tokens"
 vis_dir = ".../token_vis"
 recon_dir = ".../recon"
@@ -53,8 +52,6 @@ for token_path in token_paths:
     vocab_size = model.quantize.n_e if hasattr(model.quantize, "n_e") else 8192
 
     print(f"  → Unique tokens used: {len(unique_tokens)} / {vocab_size}")
-
-    # ======== Visualize Token Map ========
     plt.figure(figsize=(6, 6))
     plt.imshow(tokens, cmap="tab20")
     plt.title(f"{img_name} Tokens ({len(unique_tokens)} used)")
