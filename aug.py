@@ -1,14 +1,8 @@
-"""
-Test script to verify data augmentation pipeline
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import os
 import sys
-
-# Add current directory to path to import our modules
 sys.path.append('.')
 
 from transforms import (RandomHorizontalFlip, RandomVerticalFlip, RandomRotation,
@@ -16,7 +10,6 @@ from transforms import (RandomHorizontalFlip, RandomVerticalFlip, RandomRotation
                        RandomChannelShuffle, RandomElasticDeformation, Compose)
 from augmented_dataset import AugmentedRadioMapDataset, DataAugmentationPresets, create_dataloaders
 from visualization_utils import RadioMapVisualizer
-
 
 def test_individual_transforms():
     """Test individual transforms with synthetic data"""
@@ -27,7 +20,6 @@ def test_individual_transforms():
     test_input = np.random.rand(100, 100, 3).astype(np.float32)
     test_output = np.random.rand(100, 100).astype(np.float32)
     
-    # Test transforms
     transforms_to_test = [
         ("Horizontal Flip", RandomHorizontalFlip(p=1.0)),
         ("Vertical Flip", RandomVerticalFlip(p=1.0)),
@@ -330,3 +322,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
