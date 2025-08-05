@@ -1,15 +1,13 @@
 from typing import List, Tuple
-
 import torch
 import torch.nn as nn
+import numpy as np
 import torchvision.transforms.functional as F
 from PIL import Image
 from torch import Tensor
 from torchvision import transforms
 from torchvision.transforms import Lambda
-
 from .muse import VQGANModel
-
 
 class ForwardWrapper(nn.Module):
     def __init__(self, vq_model, func='encode'):
@@ -60,20 +58,6 @@ class SixCrop(torch.nn.Module):
         super().__init__()
         self.crop_size = crop_size
     
-    # def get_dimensions(self, img):
-    #     """Returns the dimensions of an image as [channels, height, width].
-    #
-    #     Args:
-    #         img (PIL Image or Tensor): The image to be checked.
-    #
-    #     Returns:
-    #         List[int]: The image dimensions.
-    #     """
-    #     if isinstance(img, torch.Tensor):
-    #         return F_t.get_dimensions(img)
-    #
-    #     return F_pil.get_dimensions(img)
-    
     def get_dimensions(self, img) -> List[int]:
         if hasattr(img, "getbands"):
             channels = len(img.getbands())
@@ -83,33 +67,8 @@ class SixCrop(torch.nn.Module):
         return [channels, height, width]
     
     def six_crop(self, img: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
-        """Crop the given image into four corners and the central crop.
-        If the image is torch Tensor, it is expected
-        to have [..., H, W] shape, where ... means an arbitrary number of leading dimensions
-
-        .. Note::
-            This transform returns a tuple of images and there may be a
-            mismatch in the number of inputs and targets your ``Dataset`` returns.
-
-        Args:
-            img (PIL Image or Tensor): Image to be cropped.
-            size (sequence or int): Desired output size of the crop. If size is an
-                int instead of sequence like (h, w), a square crop (size, size) is
-                made. If provided a sequence of length 1, it will be interpreted as (size[0], size[0]).
-
-        Returns:
-           tuple: tuple (tl, tr, bl, br, center)
-           Corresponding top left, top right, bottom left, bottom right and center crop.
-        """
-        # if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        #     _log_api_usage_once(five_crop)
-        
         crop_height, crop_width = self.crop_size
         _, image_height, image_width = self.get_dimensions(img)
-        
-        # if crop_width > image_width or crop_height > image_height:
-        # msg = "Requested crop size {} is bigger than input size {}"
-        # raise ValueError(msg.format(self.crop_size, (image_height, image_width)))
         
         if crop_width > image_width:
             crop_width = image_width
@@ -138,13 +97,6 @@ class SixCrop(torch.nn.Module):
         # center = center_crop(img, [crop_height, crop_width])
     
     def forward(self, img):
-        """
-        Args:
-            img (PIL Image or Tensor): Image to be scaled.
-
-        Returns:
-            PIL Image or Tensor: Rescaled image.
-        """
         return self.six_crop(img)
     
     def __repr__(self) -> str:
@@ -210,10 +162,7 @@ encode_transform_rain_random_2 = transforms.Compose(
 )
 
 if __name__ == '__main__':
-    import numpy as np
-    
     vq_model = load_model('/cache/ckpt/vqgan-f16-8192-laion')
-    
     image = Image.open("ILSVRC2012_val_00040846.JPEG")
     pixel_values = encode_transform(image).unsqueeze(0)
     quantized_states, indices = vq_model.encode(pixel_values)
