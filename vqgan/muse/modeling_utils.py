@@ -6,7 +6,6 @@ from collections import OrderedDict
 from functools import partial
 from pathlib import PosixPath
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-
 import accelerate
 import numpy as np
 import torch
@@ -19,17 +18,14 @@ from huggingface_hub.utils import (
 )
 from requests import HTTPError
 from torch import Tensor, device
-
 from . import __version__, logging
 
 logger = logging.get_logger(__name__)
-
 
 hf_cache_home = os.path.expanduser(
     os.getenv("HF_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "huggingface"))
 )
 default_cache_path = os.path.join(hf_cache_home, "muse")
-
 
 CONFIG_NAME = "config.json"
 WEIGHTS_NAME = "pytorch_model.bin"
