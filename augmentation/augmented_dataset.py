@@ -1,7 +1,3 @@
-"""
-Enhanced Dataset Generator with Data Augmentation for VQGAN Pretraining
-"""
-
 import torch
 import numpy as np
 import pandas as pd
@@ -13,13 +9,7 @@ import random
 from typing import Optional, Tuple, List
 from transforms import Compose, Resize, Normalize
 
-
 class AugmentedRadioMapDataset(Dataset):
-    """
-    Enhanced Dataset for Radio Map Prediction with Data Augmentation
-    Supports VQGAN pretraining with encoder-decoder updates
-    """
-    
     def __init__(self, 
                  input_path: str,
                  output_path: str,
@@ -32,22 +22,6 @@ class AugmentedRadioMapDataset(Dataset):
                  device: str = "cuda",
                  normalize_input: bool = True,
                  data_format: str = "CHW"):  # "CHW" or "HWC"
-        """
-        Initialize the augmented dataset
-        
-        Args:
-            input_path: Path to input images (3-channel scene graphs)
-            output_path: Path to output images (grayscale pathloss maps)
-            buildings: List of building IDs to include (default: 1-25)
-            antennas: List of antenna IDs to include (default: [1])
-            frequencies: List of frequency IDs to include (default: [1])
-            samples_per_config: Number of samples per configuration (default: 50)
-            image_size: Target image size (H, W)
-            transforms: Data augmentation transforms
-            device: Device to load tensors on
-            normalize_input: Whether to normalize input to [0, 1]
-            data_format: Output tensor format - "CHW" (channels first) or "HWC" (channels last)
-        """
         
         self.input_path = input_path
         self.output_path = output_path
@@ -88,7 +62,6 @@ class AugmentedRadioMapDataset(Dataset):
         return len(self.file_names)
     
     def __getitem__(self, idx):
-        """Get a single sample with augmentation"""
         
         filename = self.file_names[idx]
         
@@ -100,7 +73,6 @@ class AugmentedRadioMapDataset(Dataset):
         output_path = os.path.join(self.output_path, filename + ".png")
         output_img = imread(output_path)
         
-        # Ensure correct dimensions
         if len(input_img.shape) == 2:
             input_img = np.stack([input_img] * 3, axis=-1)
         
@@ -360,4 +332,5 @@ def create_dataloaders(input_path: str,
     print(f"  Val:   {len(val_loader)} batches ({len(val_indices)} samples)")
     print(f"  Test:  {len(test_loader)} batches ({len(test_indices)} samples)")
     
+
     return train_loader, val_loader, test_loader
