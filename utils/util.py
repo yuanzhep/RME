@@ -2,10 +2,6 @@ import os, hashlib
 import requests
 from tqdm import tqdm
 
-URL_MAP = {
-    "vgg_lpips": "https://heibox.uni-heidelberg.de/f/607503859c864bc1b30b/?dl=1"
-}
-
 CKPT_MAP = {
     "vgg_lpips": "vgg.pth"
 }
@@ -62,37 +58,6 @@ class KeyNotFoundError(Exception):
 def retrieve(
     list_or_dict, key, splitval="/", default=None, expand=True, pass_success=False
 ):
-    """Given a nested list or dict return the desired value at key expanding
-    callable nodes if necessary and :attr:`expand` is ``True``. The expansion
-    is done in-place.
-
-    Parameters
-    ----------
-        list_or_dict : list or dict
-            Possibly nested list or dictionary.
-        key : str
-            key/to/value, path like string describing all keys necessary to
-            consider to get to the desired value. List indices can also be
-            passed here.
-        splitval : str
-            String that defines the delimiter between keys of the
-            different depth levels in `key`.
-        default : obj
-            Value returned if :attr:`key` is not found.
-        expand : bool
-            Whether to expand callable nodes on the path or not.
-
-    Returns
-    -------
-        The desired value or if :attr:`default` is not ``None`` and the
-        :attr:`key` is not found returns ``default``.
-
-    Raises
-    ------
-        Exception if ``key`` not in ``list_or_dict`` and :attr:`default` is
-        ``None``.
-    """
-
     keys = key.split(splitval)
 
     success = True
@@ -154,4 +119,3 @@ if __name__ == "__main__":
     config = OmegaConf.create(config)
     print(config)
     retrieve(config, "keya")
-
