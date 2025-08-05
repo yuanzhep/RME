@@ -10,9 +10,7 @@ from pytorch_lightning import seed_everything
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback, LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
-
 from taming.data.utils import custom_collate
-
 
 def get_obj_from_str(string, reload=False):
     module, cls = string.rsplit(".", 1)
@@ -318,52 +316,7 @@ class ImageLogger(Callback):
 
 
 if __name__ == "__main__":
-    # custom parser to specify config files, train, test and debug mode,
-    # postfix, resume.
-    # `--key value` arguments are interpreted as arguments to the trainer.
-    # `nested.key=value` arguments are interpreted as config parameters.
-    # configs are merged from left-to-right followed by command line parameters.
-
-    # model:
-    #   base_learning_rate: float
-    #   target: path to lightning module
-    #   params:
-    #       key: value
-    # data:
-    #   target: main.DataModuleFromConfig
-    #   params:
-    #      batch_size: int
-    #      wrap: bool
-    #      train:
-    #          target: path to train dataset
-    #          params:
-    #              key: value
-    #      validation:
-    #          target: path to validation dataset
-    #          params:
-    #              key: value
-    #      test:
-    #          target: path to test dataset
-    #          params:
-    #              key: value
-    # lightning: (optional, has sane defaults and can be specified on cmdline)
-    #   trainer:
-    #       additional arguments to trainer
-    #   logger:
-    #       logger to instantiate
-    #   modelcheckpoint:
-    #       modelcheckpoint to instantiate
-    #   callbacks:
-    #       callback1:
-    #           target: importpath
-    #           params:
-    #               key: value
-
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-
-    # add cwd for convenience and to make classes in this file available when
-    # running as `python main.py`
-    # (in particular `main.DataModuleFromConfig`)
     sys.path.append(os.getcwd())
 
     parser = get_parser()
@@ -432,10 +385,7 @@ if __name__ == "__main__":
         trainer_opt = argparse.Namespace(**trainer_config)
         lightning_config.trainer = trainer_config
 
-        # model
         model = instantiate_from_config(config.model)
-
-        # trainer and callbacks
         trainer_kwargs = dict()
 
         # default logger configs
@@ -486,7 +436,6 @@ if __name__ == "__main__":
         modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
         trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
 
-        # add callback which sets up log directory
         default_callbacks_cfg = {
             "setup_callback": {
                 "target": "main.SetupCallback",
@@ -522,7 +471,6 @@ if __name__ == "__main__":
 
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
 
-        # data
         data = instantiate_from_config(config.data)
         # NOTE according to https://pytorch-lightning.readthedocs.io/en/latest/datamodules.html
         # calling these ourselves should not be necessary but it is.
@@ -559,7 +507,6 @@ if __name__ == "__main__":
         signal.signal(signal.SIGUSR1, melk)
         signal.signal(signal.SIGUSR2, divein)
 
-        # run
         if opt.train:
             try:
                 trainer.fit(model, data)
@@ -577,7 +524,6 @@ if __name__ == "__main__":
             debugger.post_mortem()
         raise
     finally:
-        # move newly created debug project to debug_runs
         if opt.debug and not opt.resume and trainer.global_rank==0:
             dst, name = os.path.split(logdir)
             dst = os.path.join(dst, "debug_runs", name)
