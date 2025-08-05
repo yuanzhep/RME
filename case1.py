@@ -4,7 +4,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
 
 class Case1PromptSelector:
-    
     def __init__(self, layout_shape=(400, 350), random_state=42):
         self.layout_shape = layout_shape
         self.random_state = random_state
@@ -109,8 +108,6 @@ class Case1PromptSelector:
         d0 = 1.0  
         distances = np.maximum(distances, d0)
         pathloss = pl0 + 10 * n * np.log10(distances / d0)
-        
-        
         return pathloss
     
     def visualize_selection(self, candidate_positions, selected_positions, cluster_info):
@@ -144,7 +141,7 @@ if __name__ == "__main__":
     candidate_positions = selector.generate_feasible_tx_positions(n_positions=500)
     print(f"Generated {len(candidate_positions)} feasible positions")
     
-    k = 5  
+    k = 3
     print(f"\nSelecting {k} representative positions using K-means clustering...")
     selected_positions, cluster_info = selector.select_representative_tx_positions(
         candidate_positions, k=k
@@ -163,4 +160,5 @@ if __name__ == "__main__":
               f"Output shape {prompt['output'].shape}")
     
     print("\nVisualizing selection process...")
+
     selector.visualize_selection(candidate_positions, selected_positions, cluster_info)
