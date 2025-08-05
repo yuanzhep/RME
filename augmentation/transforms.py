@@ -1,8 +1,3 @@
-"""
-Data Augmentation Transforms for Radio Map Prediction
-Supports both input (3-channel scene graphs) and output (grayscale pathloss maps)
-"""
-
 import cv2
 import numpy as np
 import torch
@@ -12,20 +7,14 @@ from PIL import Image
 import random
 from typing import Tuple, Optional, Union
 
-
 class RadioMapTransform:
-    """Base class for radio map transformations that apply to both input and output"""
-    
     def __init__(self):
         pass
     
     def __call__(self, input_img: np.ndarray, output_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         raise NotImplementedError
 
-
 class RandomHorizontalFlip(RadioMapTransform):
-    """Randomly flip both input and output horizontally with given probability"""
-    
     def __init__(self, p: float = 0.5):
         self.p = p
     
@@ -35,10 +24,7 @@ class RandomHorizontalFlip(RadioMapTransform):
             output_img = np.fliplr(output_img)
         return input_img, output_img
 
-
 class RandomVerticalFlip(RadioMapTransform):
-    """Randomly flip both input and output vertically with given probability"""
-    
     def __init__(self, p: float = 0.5):
         self.p = p
     
@@ -48,10 +34,7 @@ class RandomVerticalFlip(RadioMapTransform):
             output_img = np.flipud(output_img)
         return input_img, output_img
 
-
 class RandomRotation(RadioMapTransform):
-    """Randomly rotate both input and output by 90, 180, or 270 degrees"""
-    
     def __init__(self, angles: list = [90, 180, 270], p: float = 0.5):
         self.angles = angles
         self.p = p
@@ -66,8 +49,6 @@ class RandomRotation(RadioMapTransform):
 
 
 class RandomCrop(RadioMapTransform):
-    """Randomly crop both input and output to specified size"""
-    
     def __init__(self, size: Union[int, Tuple[int, int]], p: float = 0.5):
         if isinstance(size, int):
             self.size = (size, size)
@@ -93,8 +74,6 @@ class RandomCrop(RadioMapTransform):
 
 
 class RandomScale(RadioMapTransform):
-    """Randomly scale both input and output"""
-    
     def __init__(self, scale_range: Tuple[float, float] = (0.8, 1.2), p: float = 0.5):
         self.scale_range = scale_range
         self.p = p
@@ -110,10 +89,7 @@ class RandomScale(RadioMapTransform):
         
         return input_img, output_img
 
-
 class AddGaussianNoise(RadioMapTransform):
-    """Add Gaussian noise to input only (not to output pathloss map)"""
-    
     def __init__(self, noise_std: float = 0.01, p: float = 0.5):
         self.noise_std = noise_std
         self.p = p
@@ -126,8 +102,6 @@ class AddGaussianNoise(RadioMapTransform):
 
 
 class RandomBrightness(RadioMapTransform):
-    """Randomly adjust brightness of input only"""
-    
     def __init__(self, brightness_range: Tuple[float, float] = (0.8, 1.2), p: float = 0.5):
         self.brightness_range = brightness_range
         self.p = p
@@ -138,10 +112,7 @@ class RandomBrightness(RadioMapTransform):
             input_img = np.clip(input_img * brightness, 0, 1)
         return input_img, output_img
 
-
 class RandomContrast(RadioMapTransform):
-    """Randomly adjust contrast of input only"""
-    
     def __init__(self, contrast_range: Tuple[float, float] = (0.8, 1.2), p: float = 0.5):
         self.contrast_range = contrast_range
         self.p = p
@@ -153,10 +124,7 @@ class RandomContrast(RadioMapTransform):
             input_img = np.clip((input_img - mean) * contrast + mean, 0, 1)
         return input_img, output_img
 
-
 class RandomChannelShuffle(RadioMapTransform):
-    """Randomly shuffle channels of input (for 3-channel scene graphs)"""
-    
     def __init__(self, p: float = 0.3):
         self.p = p
     
@@ -169,8 +137,6 @@ class RandomChannelShuffle(RadioMapTransform):
 
 
 class RandomElasticDeformation(RadioMapTransform):
-    """Apply elastic deformation to both input and output"""
-    
     def __init__(self, alpha: float = 100, sigma: float = 10, p: float = 0.3):
         self.alpha = alpha
         self.sigma = sigma
@@ -179,25 +145,15 @@ class RandomElasticDeformation(RadioMapTransform):
     def __call__(self, input_img: np.ndarray, output_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         if random.random() < self.p:
             h, w = input_img.shape[:2]
-            
-            # Generate random displacement fields
             dx = np.random.randn(h, w) * self.sigma
             dy = np.random.randn(h, w) * self.sigma
-            
-            # Apply Gaussian filter to smooth the displacement
             dx = cv2.GaussianBlur(dx, (0, 0), self.sigma)
             dy = cv2.GaussianBlur(dy, (0, 0), self.sigma)
-            
-            # Scale by alpha
             dx *= self.alpha
             dy *= self.alpha
-            
-            # Create meshgrid
             x, y = np.meshgrid(np.arange(w), np.arange(h))
             x_new = np.clip(x + dx, 0, w - 1)
             y_new = np.clip(y + dy, 0, h - 1)
-            
-            # Apply deformation
             if len(input_img.shape) == 3:
                 input_img = cv2.remap(input_img, x_new.astype(np.float32), y_new.astype(np.float32), 
                                     cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101)
@@ -210,10 +166,7 @@ class RandomElasticDeformation(RadioMapTransform):
         
         return input_img, output_img
 
-
 class Compose:
-    """Compose multiple transformations"""
-    
     def __init__(self, transforms: list):
         self.transforms = transforms
     
@@ -222,10 +175,7 @@ class Compose:
             input_img, output_img = transform(input_img, output_img)
         return input_img, output_img
 
-
 class Resize(RadioMapTransform):
-    """Resize both input and output to specified size"""
-    
     def __init__(self, size: Union[int, Tuple[int, int]]):
         if isinstance(size, int):
             self.size = (size, size)
@@ -239,12 +189,11 @@ class Resize(RadioMapTransform):
 
 
 class Normalize(RadioMapTransform):
-    """Normalize input to [0, 1] range"""
-    
     def __init__(self, input_range: Tuple[float, float] = (0, 255)):
         self.input_range = input_range
     
     def __call__(self, input_img: np.ndarray, output_img: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         input_img = (input_img - self.input_range[0]) / (self.input_range[1] - self.input_range[0])
         input_img = np.clip(input_img, 0, 1)
+
         return input_img, output_img
