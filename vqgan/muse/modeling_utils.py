@@ -1,18 +1,3 @@
-# coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import functools
 import inspect
 import json
@@ -54,9 +39,7 @@ MUSE_CACHE = default_cache_path
 MUSE_DYNAMIC_MODULE_NAME = "myse_modules"
 HF_MODULES_CACHE = os.getenv("HF_MODULES_CACHE", os.path.join(hf_cache_home, "modules"))
 
-
 _LOW_CPU_MEM_USAGE_DEFAULT = True
-
 
 def get_parameter_device(parameter: torch.nn.Module):
     try:
@@ -86,7 +69,6 @@ def get_parameter_dtype(parameter: torch.nn.Module):
         gen = parameter._named_members(get_members_fn=find_tensor_attributes)
         first_tuple = next(gen)
         return first_tuple[1].dtype
-
 
 def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
     """
