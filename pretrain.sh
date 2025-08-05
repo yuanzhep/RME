@@ -3,32 +3,24 @@
 echo "FROZEN CODEBOOK VQGAN PRETRAINING"
 echo "===================================="
 
-# Set GPU
 export CUDA_VISIBLE_DEVICES=0
 
-# CRITICAL: Path to existing VQGAN weights (for codebook extraction)
 PRETRAINED_CODEBOOK_PATH="models/pytorch_model.bin"
 
-# Paths
-SCENE_DIR="/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/map"
-PATHLOSS_DIR="/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/pathloss"
+SCENE_DIR=".../ripple/dataset/..."
+PATHLOSS_DIR=".../ripple/dataset/..."
 
-# Training parameters 
-EPOCHS=65           # "65 epochs"
-BATCH_SIZE=16        # "batch size of 16"
+EPOCHS=80          # "80 epochs"
+BATCH_SIZE=256        # "batch size of 256"
 LEARNING_RATE=1e-4   # "learning rate of 1×10^-4"
 COMMITMENT_WEIGHT=0.25  "λ = 0.25"
-
-# Model parameters
 EMBED_DIM=256
 N_EMBED=8192
 CHANNELS=3
 IMAGE_SIZE=256
 
-# Output directory
-CHECKPOINT_DIR="./checkpoints_frozen_codebook"
+CHECKPOINT_DIR="./checkpoints"
 
-# Create checkpoint directory
 mkdir -p $CHECKPOINT_DIR
 
 echo "Configuration:"
@@ -61,7 +53,7 @@ echo ""
 echo "Starting training..."
 
 # Run training
-python frozen_codebook_pretrain.py \
+python frozen.py \
     --scene_dir $SCENE_DIR \
     --pathloss_dir $PATHLOSS_DIR \
     --pretrained_codebook_path $PRETRAINED_CODEBOOK_PATH \
@@ -78,11 +70,10 @@ python frozen_codebook_pretrain.py \
     2>&1 | tee $CHECKPOINT_DIR/training.log
 
 echo ""
-echo "Training completed!"
+echo "Training completed"
 echo "Results saved in: $CHECKPOINT_DIR"
 echo "Training log: $CHECKPOINT_DIR/training.log"
 echo ""
-echo "Key benefits achieved:"
 echo "  Codebook frozen - LLaMA compatibility maintained"
-echo "  Encoder optimized for 3-channel scene tensors"
-echo "  Decoder specialized for pathloss reconstruction"
+echo "  Encoder optimized for scene tensors"
+echo "  Decoder optimized for pathloss reconstruction"
