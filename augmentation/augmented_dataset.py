@@ -31,7 +31,6 @@ class AugmentedRadioMapDataset(Dataset):
         self.normalize_input = normalize_input
         self.data_format = data_format
         
-        # Default parameters
         if buildings is None:
             buildings = list(range(1, 26))  # Buildings 1-25
         
@@ -40,7 +39,6 @@ class AugmentedRadioMapDataset(Dataset):
         self.frequencies = frequencies
         self.samples_per_config = samples_per_config
         
-        # Generate file names
         self.file_names = []
         self.file_indices = []
         
@@ -65,11 +63,9 @@ class AugmentedRadioMapDataset(Dataset):
         
         filename = self.file_names[idx]
         
-        # Load input image (3-channel scene graph)
         input_path = os.path.join(self.input_path, filename + ".png")
         input_img = imread(input_path)
         
-        # Load output image (grayscale pathloss map)
         output_path = os.path.join(self.output_path, filename + ".png")
         output_img = imread(output_path)
         
@@ -79,27 +75,21 @@ class AugmentedRadioMapDataset(Dataset):
         if len(output_img.shape) == 3:
             output_img = output_img[:, :, 0]  # Take first channel if RGB
         
-        # Apply transforms if provided
         if self.transforms:
             input_img, output_img = self.transforms(input_img, output_img)
         
-        # Resize to target size
         input_img = cv2.resize(input_img, self.image_size, interpolation=cv2.INTER_NEAREST)
         output_img = cv2.resize(output_img, self.image_size, interpolation=cv2.INTER_CUBIC)
         
-        # Normalize input to [0, 1]
         if self.normalize_input:
             input_img = input_img.astype(np.float32) / 255.0
         
-        # Normalize output to [0, 1] if needed
         if output_img.dtype == np.uint8:
             output_img = output_img.astype(np.float32) / 255.0
         
-        # Convert to tensors
         input_tensor = torch.from_numpy(input_img).float()
         output_tensor = torch.from_numpy(output_img).float()
         
-        # Adjust tensor format
         if self.data_format == "CHW":
             if len(input_tensor.shape) == 3:
                 input_tensor = input_tensor.permute(2, 0, 1)  # HWC -> CHW
@@ -109,7 +99,6 @@ class AugmentedRadioMapDataset(Dataset):
         return input_tensor, output_tensor, filename
     
     def get_sample_info(self, idx):
-        """Get information about a specific sample"""
         filename = self.file_names[idx]
         parts = filename.split('_')
         
@@ -128,8 +117,6 @@ class AugmentedRadioMapDataset(Dataset):
 
 
 class DataAugmentationPresets:
-    """Predefined augmentation presets for different training scenarios"""
-    
     @staticmethod
     def get_light_augmentation():
         """Light augmentation for initial training"""
@@ -198,7 +185,6 @@ class DataAugmentationPresets:
             RandomContrast(contrast_range=(0.95, 1.05), p=0.2),
         ])
 
-
 def create_dataloaders(input_path: str,
                       output_path: str,
                       batch_size: int = 8,
@@ -210,27 +196,7 @@ def create_dataloaders(input_path: str,
                       num_workers: int = 4,
                       buildings: List[int] = None,
                       device: str = "cuda") -> Tuple[DataLoader, DataLoader, DataLoader]:
-    """
-    Create train, validation, and test dataloaders
     
-    Args:
-        input_path: Path to input images
-        output_path: Path to output images
-        batch_size: Batch size for training
-        train_split: Fraction of data for training
-        val_split: Fraction of data for validation
-        test_split: Fraction of data for testing
-        augmentation_preset: Augmentation preset ("light", "medium", "heavy", "vqgan")
-        image_size: Target image size
-        num_workers: Number of workers for data loading
-        buildings: List of building IDs to include
-        device: Device to load tensors on
-    
-    Returns:
-        train_loader, val_loader, test_loader
-    """
-    
-    # Get augmentation transforms
     if augmentation_preset == "light":
         train_transforms = DataAugmentationPresets.get_light_augmentation()
     elif augmentation_preset == "medium":
@@ -242,10 +208,8 @@ def create_dataloaders(input_path: str,
     else:
         train_transforms = None
     
-    # No augmentation for validation and test
     val_test_transforms = None
     
-    # Create full dataset
     full_dataset = AugmentedRadioMapDataset(
         input_path=input_path,
         output_path=output_path,
@@ -255,7 +219,6 @@ def create_dataloaders(input_path: str,
         device=device
     )
     
-    # Split indices
     total_size = len(full_dataset)
     train_size = int(train_split * total_size)
     val_size = int(val_split * total_size)
@@ -269,7 +232,6 @@ def create_dataloaders(input_path: str,
     val_indices = indices[train_size:train_size + val_size]
     test_indices = indices[train_size + val_size:]
     
-    # Create datasets for each split
     train_dataset = AugmentedRadioMapDataset(
         input_path=input_path,
         output_path=output_path,
@@ -297,12 +259,11 @@ def create_dataloaders(input_path: str,
         device=device
     )
     
-    # Create subset datasets
     train_subset = torch.utils.data.Subset(train_dataset, train_indices)
     val_subset = torch.utils.data.Subset(val_dataset, val_indices)
     test_subset = torch.utils.data.Subset(test_dataset, test_indices)
     
-    # Create dataloaders
+    # dataloaders
     train_loader = DataLoader(
         train_subset,
         batch_size=batch_size,
@@ -332,5 +293,4 @@ def create_dataloaders(input_path: str,
     print(f"  Val:   {len(val_loader)} batches ({len(val_indices)} samples)")
     print(f"  Test:  {len(test_loader)} batches ({len(test_indices)} samples)")
     
-
     return train_loader, val_loader, test_loader
