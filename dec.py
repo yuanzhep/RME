@@ -7,11 +7,11 @@ from taming.models.vqgan import VQModel
 from PIL import Image
 import torchvision.transforms as T
 
-llama_dir = ".../RME/llama"
-vqgan_ckpt = ".../RME/models/pytorch_model.bin"
-vqgan_config = ".../RME/models/config.json"
-token_input_path = ".../RME/llama_input/prompt_sequence.npy"
-output_save_path = ".../RME/predicted_pathloss.png"
+llama_dir = ".../llama"
+vqgan_ckpt = ".../models/pytorch_model.bin"
+vqgan_config = ".../models/config.json"
+token_input_path = ".../llama_input/prompt_sequence.npy"
+output_save_path = ".../predict/..."
 
 print("Loading LLaMA model...")
 config = AutoConfig.from_pretrained(llama_dir, trust_remote_code=True)
@@ -54,7 +54,7 @@ vqgan.load_state_dict(state_dict, strict=False)
 
 print("Loading input token sequence...")
 input_tokens = np.load(token_input_path)
-input_tokens = torch.tensor(input_tokens).unsqueeze(0).cuda()  # (1, T)
+input_tokens = torch.tensor(input_tokens).unsqueeze(0).cuda()  
 
 print("Generating token output...")
 with torch.no_grad():
@@ -75,9 +75,9 @@ pred_tokens = pred_tokens[0].detach().cpu().numpy().reshape(16, 16)
 pred_tokens = torch.tensor(pred_tokens).unsqueeze(0).long().cuda()  # (1, 16, 16)
 
 with torch.no_grad():
-    decoded = vqgan.decode(pred_tokens)  # (1, 3, H, W)
+    decoded = vqgan.decode(pred_tokens)  
 
-decoded = decoded.squeeze().cpu().clamp(0, 1)  # (3, H, W)
+decoded = decoded.squeeze().cpu().clamp(0, 1) 
 decoded_img = T.ToPILImage()(decoded)
 decoded_img = decoded_img.resize((256, 256), Image.BICUBIC)
 decoded_img.save(output_save_path)
