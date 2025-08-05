@@ -1,6 +1,3 @@
-"""
-This version explicitly separates scene and pathloss batches
-"""
 import os
 import torch
 import torch.nn as nn
@@ -9,7 +6,6 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 import argparse
 
-# Import the components from the main implementation
 from frozen_codebook_pretrain import (
     RadioMapDataset, FrozenCodebookVQGAN, Discriminator,
     load_pretrained_codebook, save_checkpoint, validate_model
@@ -18,10 +14,6 @@ from frozen_codebook_pretrain import (
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class SeparatedBatchTrainer:
-    """
-    Trainer that explicitly separates scene and pathloss batches
-    """
-    
     def __init__(self, vqgan, discriminator, args):
         self.vqgan = vqgan
         self.discriminator = discriminator
@@ -37,17 +29,10 @@ class SeparatedBatchTrainer:
         self.bce_loss = nn.BCEWithLogitsLoss()
     
     def train_epoch_separated_batches(self, train_loader, epoch):
-        """
-        Train one epoch with explicit batch separation
-        """
         self.vqgan.train()
         self.discriminator.train()
-        
-        # Collect all batches first
         all_batches = list(train_loader)
         total_batches = len(all_batches)
-        
-        # Separate into scene and pathloss processing
         scene_losses = []
         pathloss_losses = []
         
@@ -72,7 +57,7 @@ class SeparatedBatchTrainer:
             
             scene_losses.append(encoder_loss.item())
         
-        # Phase 2: Process all batches for pathloss training (decoder + discriminator updates)
+        # Phase 2: Process all batches for PL training (decoder updates)
         print("Phase 2: Pathloss processing (decoder + discriminator updates)")
         for i, batch in enumerate(tqdm(all_batches, desc="Pathloss Processing")):
             pathloss_maps = batch['pathloss'].to(DEVICE)
@@ -82,14 +67,10 @@ class SeparatedBatchTrainer:
             
             # Forward with pathloss maps (decoder active, encoder frozen)
             pathloss_recon, commitment_loss, _ = self.vqgan(pathloss_maps, mode='pathloss')
-            
-            # Discriminator training
             real_logits = self.discriminator(pathloss_maps)
             fake_logits = self.discriminator(pathloss_recon.detach())
-            
             real_labels = torch.ones_like(real_logits)
             fake_labels = torch.zeros_like(fake_logits)
-            
             d_real_loss = self.bce_loss(real_logits, real_labels)
             d_fake_loss = self.bce_loss(fake_logits, fake_labels)
             d_loss = (d_real_loss + d_fake_loss) * 0.5
@@ -120,7 +101,6 @@ class SeparatedBatchTrainer:
             
             pathloss_losses.append(decoder_loss.item())
         
-        # Return epoch statistics
         avg_scene_loss = sum(scene_losses) / len(scene_losses)
         avg_pathloss_loss = sum(pathloss_losses) / len(pathloss_losses)
         
@@ -131,10 +111,6 @@ class SeparatedBatchTrainer:
         return avg_scene_loss, avg_pathloss_loss
 
 def train_with_separated_batches(args):
-    """
-    Main training function with explicit batch separation
-    """
-    # Setup
     os.makedirs(args.checkpoint_dir, exist_ok=True)
     
     # Load frozen codebook
@@ -188,8 +164,6 @@ def train_with_separated_batches(args):
     for epoch in range(args.epochs):
         # Train with separated batches
         scene_loss, pathloss_loss = trainer.train_epoch_separated_batches(train_loader, epoch)
-        
-        # Validation every 10 epochs
         if (epoch + 1) % 10 == 0:
             val_loss = validate_model(vqgan, val_loader, trainer.l2_loss, args)
             
@@ -206,31 +180,23 @@ def train_with_separated_batches(args):
             save_checkpoint(vqgan, discriminator_G, epoch, 0, args, 
                            f'separated_batch_epoch_{epoch+1}.pth')
     
-    print("Separated batch training completed!")
+    print("Separated batch training completed")
 
 def main():
     parser = argparse.ArgumentParser(description='Separated Batch VQGAN Training')
-    
-    # Data paths
     parser.add_argument('--scene_dir', type=str, 
-                       default='/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/map')
+                       default='.../ripple/dataset/...')
     parser.add_argument('--pathloss_dir', type=str,
-                       default='/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/pathloss')
+                       default='.../ripple/dataset/...')
     parser.add_argument('--pretrained_codebook_path', type=str, required=True)
-    
-    # Model parameters
     parser.add_argument('--embed_dim', type=int, default=256)
     parser.add_argument('--n_embed', type=int, default=8192)
     parser.add_argument('--ch', type=int, default=128)
     parser.add_argument('--image_size', type=int, default=256)
-    
-    # Training parameters
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--epochs', type=int, default=80)
+    parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--commitment_weight', type=float, default=0.25)
-    
-    # System parameters
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints_separated')
     
@@ -239,4 +205,5 @@ def main():
     train_with_separated_batches(args)
 
 if __name__ == "__main__":
+
     main()
