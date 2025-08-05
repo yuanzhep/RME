@@ -63,24 +63,19 @@ class VQGAN(nn.Module):
         z_q = self.quantize.get_codebook_entry(tokens)
         return self.decoder(z_q)
 
-
-# === File: utils/token_helper.py ===
-import torch
-
-def create_interleaved_tokens(zin_list, zout_list=None):
-    sequence = []
-    for i, zin in enumerate(zin_list):
-        zin_tensor = zin[2] if isinstance(zin, tuple) else zin  # Extract indices
-        zout_tensor = zout_list[i][2] if zout_list and isinstance(zout_list[i], tuple) else zout_list[i]
-
-        zin_flat = zin_tensor.view(-1)
-        if zout_list is None:
-            sequence.append(zin_flat)
-        else:
-            zout_flat = zout_tensor.view(-1)
-            interleaved = torch.empty(zin_flat.numel() * 2, dtype=zin_flat.dtype, device=zin_flat.device)
-            interleaved[0::2] = zin_flat
-            interleaved[1::2] = zout_flat
-            sequence.append(interleaved)
-    return torch.cat(sequence, dim=0)
-
+    def create_interleaved_tokens(zin_list, zout_list=None):
+        sequence = []
+        for i, zin in enumerate(zin_list):
+            zin_tensor = zin[2] if isinstance(zin, tuple) else zin  # Extract indices
+            zout_tensor = zout_list[i][2] if zout_list and isinstance(zout_list[i], tuple) else zout_list[i]
+    
+            zin_flat = zin_tensor.view(-1)
+            if zout_list is None:
+                sequence.append(zin_flat)
+            else:
+                zout_flat = zout_tensor.view(-1)
+                interleaved = torch.empty(zin_flat.numel() * 2, dtype=zin_flat.dtype, device=zin_flat.device)
+                interleaved[0::2] = zin_flat
+                interleaved[1::2] = zout_flat
+                sequence.append(interleaved)
+        return torch.cat(sequence, dim=0)
