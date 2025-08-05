@@ -15,14 +15,11 @@ import matplotlib.pyplot as plt
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class RadioMapDataset(Dataset):
-    """Dataset for radio map domain adaptation"""
-    
     def __init__(self, scene_dir, pathloss_dir, image_size=256, split='train', train_ratio=0.8):
         self.scene_dir = Path(scene_dir)
         self.pathloss_dir = Path(pathloss_dir)
         self.image_size = image_size
         
-        # Get all scene files and match with pathloss files
         scene_files = list(self.scene_dir.glob("*.png"))
         self.file_pairs = []
         
@@ -42,7 +39,6 @@ class RadioMapDataset(Dataset):
         
         print(f"{split} dataset: {len(self.file_pairs)} pairs")
         
-        # Data augmentations as specified in paper
         if split == 'train':
             self.transform = T.Compose([
                 T.Resize((image_size, image_size)),
@@ -62,15 +58,10 @@ class RadioMapDataset(Dataset):
     
     def __getitem__(self, idx):
         scene_path, pathloss_path = self.file_pairs[idx]
-        
-        # Load 3-channel scene map (distance, reflectance, transmittance)
         scene_img = Image.open(scene_path).convert('RGB')
         scene_tensor = self.transform(scene_img)  # [3, H, W]
-        
-        # Load pathloss map (grayscale)
         pathloss_img = Image.open(pathloss_path).convert('L')
         pathloss_tensor = self.transform(pathloss_img)  # [1, H, W]
-        # Convert to 3-channel for network compatibility
         pathloss_tensor = pathloss_tensor.repeat(3, 1, 1)  # [3, H, W]
         
         return {
@@ -80,8 +71,6 @@ class RadioMapDataset(Dataset):
         }
 
 class FrozenVectorQuantizer(nn.Module):
-    """Vector Quantizer with FROZEN codebook for transformer compatibility"""
-    
     def __init__(self, n_embed, embed_dim, pretrained_codebook=None, beta=0.25):
         super().__init__()
         self.n_embed = n_embed
@@ -100,12 +89,6 @@ class FrozenVectorQuantizer(nn.Module):
             print("Warning: No pretrained codebook provided")
     
     def forward(self, z):
-        """
-        Forward pass implementing commitment loss as per paper:
-        L_commit = ||ẑ - sg(z)||_2^2
-        where sg(·) is stop-gradient operation
-        """
-        # z: [B, C, H, W] - continuous output from encoder
         z = z.permute(0, 2, 3, 1).contiguous()  # [B, H, W, C]
         z_flattened = z.view(-1, self.embed_dim)  # [B*H*W, C]
         
@@ -164,7 +147,6 @@ class ResnetBlock(nn.Module):
 
 class Encoder(nn.Module):
     """Encoder for radio scene tensors (distance, reflectance, transmittance)"""
-    
     def __init__(self, ch=128, ch_mult=(1,2,4,8), num_res_blocks=2, 
                  in_channels=3, resolution=256, z_channels=256):
         super().__init__()
@@ -301,11 +283,6 @@ class Decoder(nn.Module):
         return h
 
 class Discriminator(nn.Module):
-    """
-    Discriminator G(·) as specified in paper
-    Note: Using G notation as per your paper, even though typically D is used
-    """
-    
     def __init__(self, input_nc=3, ndf=64, n_layers=3):
         super().__init__()
         
@@ -339,7 +316,6 @@ class Discriminator(nn.Module):
 
 class FrozenCodebookVQGAN(nn.Module):
     """VQGAN with frozen codebook for radio map domain"""
-    
     def __init__(self, embed_dim=256, n_embed=8192, ch=128, resolution=256,
                  pretrained_codebook=None):
         super().__init__()
@@ -353,7 +329,6 @@ class FrozenCodebookVQGAN(nn.Module):
         self.quantize = FrozenVectorQuantizer(
             n_embed=n_embed, embed_dim=embed_dim, pretrained_codebook=pretrained_codebook
         )
-        
         print(f"Frozen Codebook VQGAN:")
         print(f"   Codebook: {n_embed} entries, {embed_dim}D")
         print(f"   Frozen: {not self.quantize.embedding.weight.requires_grad}")
@@ -397,7 +372,6 @@ def load_pretrained_codebook(checkpoint_path):
         if checkpoint_path.endswith('.pth'):
             checkpoint = torch.load(checkpoint_path, map_location='cpu')
             
-            # Try different possible keys
             possible_keys = [
                 'quantize.embedding.weight',
                 'model_state_dict.quantize.embedding.weight',
@@ -416,7 +390,6 @@ def load_pretrained_codebook(checkpoint_path):
                     print(f"   Shape: {codebook.shape}")
                     return codebook
         else:
-            # Direct state dict
             state_dict = torch.load(checkpoint_path, map_location='cpu')
             if 'quantize.embedding.weight' in state_dict:
                 codebook = state_dict['quantize.embedding.weight']
@@ -424,7 +397,7 @@ def load_pretrained_codebook(checkpoint_path):
                 print(f"   Shape: {codebook.shape}")
                 return codebook
         
-        print("No codebook found in checkpoint")
+        print("No codebook found")
         return None
         
     except Exception as e:
@@ -432,13 +405,11 @@ def load_pretrained_codebook(checkpoint_path):
         return None
 
 def train_frozen_codebook_vqgan(args):
-    # Setup
     os.makedirs(args.checkpoint_dir, exist_ok=True)
-    
     # Load frozen codebook
     pretrained_codebook = load_pretrained_codebook(args.pretrained_codebook_path)
     if pretrained_codebook is None:
-        raise ValueError("Could not load pretrained codebook! Required for frozen training.")
+        raise ValueError("Could not load pretrained codebook")
     
     # Datasets
     train_dataset = RadioMapDataset(
@@ -521,14 +492,9 @@ def train_frozen_codebook_vqgan(args):
                 epoch_stats['commitment_loss'] += commitment_loss.item()
                 
             else:
-                # Pathloss map batch: train decoder and discriminator
-                
-                # Train discriminator G(·)
+                # Pathloss map batch: train decoder, discriminator
                 opt_disc.zero_grad()
-                
                 pathloss_recon, _, _ = vqgan(pathloss_maps, mode='pathloss')
-                
-                # Real vs fake discrimination
                 real_logits = discriminator_G(pathloss_maps)
                 fake_logits = discriminator_G(pathloss_recon.detach())
                 
@@ -638,21 +604,19 @@ def main():
     
     # Data paths - as specified in your request
     parser.add_argument('--scene_dir', type=str, 
-                       default='/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/map',
+                       default='.../ripple/dataset/...',
                        help='Directory containing 3-channel scene maps')
     parser.add_argument('--pathloss_dir', type=str,
-                       default='/blue/jie.xu/pengy1/AR_RM_backup/ripple/dataset/pathloss',
+                       default='.../ripple/dataset/...',
                        help='Directory containing pathloss maps')
     parser.add_argument('--pretrained_codebook_path', type=str, required=True,
                        help='Path to pretrained VQGAN checkpoint for codebook extraction')
     
-    # Model parameters (must match LLaMA requirements)
     parser.add_argument('--embed_dim', type=int, default=256)
     parser.add_argument('--n_embed', type=int, default=8192)
     parser.add_argument('--ch', type=int, default=128)
     parser.add_argument('--image_size', type=int, default=256)
     
-    # Training parameters (as specified in paper)
     parser.add_argument('--epochs', type=int, default=100,
                        help='Training epochs (100 as per paper)')
     parser.add_argument('--batch_size', type=int, default=16,
@@ -660,9 +624,8 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-4,
                        help='Learning rate (1e-4 as per paper)')
     parser.add_argument('--commitment_weight', type=float, default=0.25,
-                       help='Commitment loss weight λ (0.25 as per paper)')
+                       help='Commitment loss weight λ (0.25)')
     
-    # System parameters
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints_frozen')
     
@@ -682,4 +645,5 @@ def main():
     train_frozen_codebook_vqgan(args)
 
 if __name__ == "__main__":
+
     main()
