@@ -2,8 +2,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-token_freq_file = ".../RME/data/tokens/token_frequency.txt"
-output_dir = ".../RME/data/tokens"
+token_freq_file = ".../data/tokens/token_frequency.txt"
+output_dir = ".../data/tokens"
 os.makedirs(output_dir, exist_ok=True)
 
 frequencies = []
@@ -22,7 +22,7 @@ num_tokens = len(frequencies)
 cumulative = np.cumsum(frequencies)
 cumulative_percent = cumulative / cumulative[-1] * 100
 
-top_k_values = [10, 50, 100, 200, 500, 1000]
+top_k_values = [10, 50, 100, 500]
 top_k_results = {k: cumulative[k-1] / cumulative[-1] * 100 for k in top_k_values if k <= num_tokens}
 
 txt_output_path = os.path.join(output_dir, "token_topk_summary.txt")
@@ -57,4 +57,3 @@ print("Analysis completed.")
 print(f"Top-k summary saved to: {txt_output_path}")
 print(f"Log-scale histogram saved to: {log_hist_output}")
 print(f"CDF curve saved to: {cdf_output}")
-
