@@ -1,9 +1,8 @@
 import torch
 from safetensors.torch import save_file
 
-bin_path = ".../llama/pytorch_model.bin"
-safetensor_path = ".../llama/model.safetensors"
-
+bin_path = ".../pytorch_model.bin"
+safetensor_path = ".../model.safetensors"
 print("Loading .bin weights directly using torch.load...")
 state_dict = torch.load(bin_path)  
 print(f"Saving to {safetensor_path} as .safetensors...")
