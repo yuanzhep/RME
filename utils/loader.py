@@ -13,7 +13,7 @@ transform_output = T.Compose([
 ])
 
 def load_input_output_image_pair(input_path, output_path):
-    input_img = Image.open(input_path).convert("RGB")
+    input_img = Image.open(input_path).convert()
     input_tensor = transform_input(input_img)  # shape: [3, 256, 256]
 
     output_img = Image.open(output_path).convert("L")  
