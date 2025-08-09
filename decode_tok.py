@@ -15,7 +15,6 @@ vis_dir = ".../token_vis"
 recon_dir = ".../recon"
 os.makedirs(vis_dir, exist_ok=True)
 os.makedirs(recon_dir, exist_ok=True)
-
 print("Loading VQ-GAN...")
 with open(config_path, "r") as f:
     config = json.load(f)
@@ -45,32 +44,27 @@ token_paths = sorted(glob(os.path.join(token_dir, "*.npy")))
 for token_path in token_paths:
     img_name = os.path.splitext(os.path.basename(token_path))[0].replace("_tokens", "")
     print(f"\nProcessing: {img_name}")
-
     tokens = np.load(token_path)  # [h, w]
     h, w = tokens.shape
     unique_tokens = np.unique(tokens)
     vocab_size = model.quantize.n_e if hasattr(model.quantize, "n_e") else 8192
-
-    print(f"  → Unique tokens used: {len(unique_tokens)} / {vocab_size}")
-    plt.figure(figsize=(6, 6))
-    plt.imshow(tokens, cmap="tab20")
+    print(f" Unique tokens used: {len(unique_tokens)} / {vocab_size}")
+    plt.figure()
     plt.title(f"{img_name} Tokens ({len(unique_tokens)} used)")
     plt.axis("off")
     pdf_path = os.path.join(vis_dir, f"{img_name}_tokens.pdf")
     plt.savefig(pdf_path, bbox_inches='tight')
     plt.close()
-    print(f"  → Token map saved as PDF: {pdf_path}")
-
+    print(f"Token map saved as PDF: {pdf_path}")
     tokens_torch = torch.tensor(tokens, dtype=torch.long).unsqueeze(0)  # [1, h, w]
     with torch.no_grad():
         z = model.quantize.get_codebook_entry(tokens_torch, shape=None)  # [1, h, w, c]
         z = z.permute(0, 3, 1, 2).contiguous()  # [1, c, h, w]
         recon = model.decode(z)  # [1, C, H, W]
-
         recon_img = recon.squeeze().permute(1, 2, 0).cpu().numpy()  # [H, W, C]
         recon_img = (recon_img + 1.0) / 2.0  # [-1, 1] → [0, 1]
         recon_img = np.clip(recon_img, 0, 1)
 
     recon_path = os.path.join(recon_dir, f"{img_name}_recon.png")
     plt.imsave(recon_path, recon_img)
-    print(f"  → Recon image saved: {recon_path}")
+    print(f"Recon image saved: {recon_path}")
