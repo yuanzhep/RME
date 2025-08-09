@@ -2,14 +2,15 @@ import os, hashlib
 import requests
 from tqdm import tqdm
 
-CKPT_MAP = {
-    "vgg_lpips": "vgg.pth"
-}
-
-MD5_MAP = {
-    "vgg_lpips": "d507d7349b931f0638a25a48a722f98a"
-}
-
+def get_ckpt_path(name, root, check=False):
+    assert name in URL_MAP
+    path = os.path.join(root, CKPT_MAP[name])
+    if not os.path.exists(path) or (check and not md5_hash(path) == MD5_MAP[name]):
+        print("Downloading {} model from {} to {}".format(name, URL_MAP[name], path))
+        download(URL_MAP[name], path)
+        md5 = md5_hash(path)
+        assert md5 == MD5_MAP[name], md5
+    return path
 
 def download(url, local_path, chunk_size=1024):
     os.makedirs(os.path.split(local_path)[0], exist_ok=True)
@@ -21,24 +22,6 @@ def download(url, local_path, chunk_size=1024):
                     if data:
                         f.write(data)
                         pbar.update(chunk_size)
-
-
-def md5_hash(path):
-    with open(path, "rb") as f:
-        content = f.read()
-    return hashlib.md5(content).hexdigest()
-
-
-def get_ckpt_path(name, root, check=False):
-    assert name in URL_MAP
-    path = os.path.join(root, CKPT_MAP[name])
-    if not os.path.exists(path) or (check and not md5_hash(path) == MD5_MAP[name]):
-        print("Downloading {} model from {} to {}".format(name, URL_MAP[name], path))
-        download(URL_MAP[name], path)
-        md5 = md5_hash(path)
-        assert md5 == MD5_MAP[name], md5
-    return path
-
 
 class KeyNotFoundError(Exception):
     def __init__(self, cause, keys=None, visited=None):
@@ -53,7 +36,6 @@ class KeyNotFoundError(Exception):
         messages.append("Cause:\n{}".format(cause))
         message = "\n".join(messages)
         super().__init__(message)
-
 
 def retrieve(
     list_or_dict, key, splitval="/", default=None, expand=True, pass_success=False
@@ -90,7 +72,6 @@ def retrieve(
                 raise KeyNotFoundError(e, keys=keys, visited=visited)
 
             visited += [key]
-        # final expansion of retrieved value
         if expand and callable(list_or_dict):
             list_or_dict = list_or_dict()
             parent[last_key] = list_or_dict
@@ -105,7 +86,6 @@ def retrieve(
         return list_or_dict
     else:
         return list_or_dict, success
-
 
 if __name__ == "__main__":
     config = {"keya": "a",
