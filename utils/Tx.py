@@ -5,34 +5,23 @@ from sklearn.cluster import KMeans
 from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 
-plt.style.use('default')
-sns.set_palette("husl")
-
 def load_data():
-    building_details = pd.read_csv('B24_Details.csv')
+    building_details = pd.read_csv('.../B24_Details.csv')
     print("Building Details:")
     print(building_details)
-    positions = pd.read_csv('Positions_B24_Ant1_f1.csv')
-    print(f"\nTransmitter Positions Shape: {positions.shape}")
-    print("First few positions:")
+    positions = pd.read_csv('.../Positions_B24_Ant1_f1.csv')
+    print(f"\nTx Positions Shape: {positions.shape}")
     print(positions.head())
-    
     return building_details, positions
 
 def perform_kmeans_clustering(positions, k=3):
-    # Extract X and Y coordinates
     coordinates = positions[['X', 'Y']].values
-    
-    # K-means
     kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
     cluster_labels = kmeans.fit_predict(coordinates)
     cluster_centers = kmeans.cluster_centers_
-    # Find the closest actual transmitter to each cluster center
     selected_indices = []
     selected_positions = []
-    
     for center in cluster_centers:
-        # Calculate distances from center to all transmitters
         distances = np.sqrt(np.sum((coordinates - center)**2, axis=1))
         closest_idx = np.argmin(distances)
         selected_indices.append(closest_idx)
@@ -43,7 +32,6 @@ def perform_kmeans_clustering(positions, k=3):
 def create_visualization(building_details, positions, cluster_labels, cluster_centers, selected_indices):
     fig, ax = plt.subplots(1, 1, figsize=(12, 10))
     selected_positions = positions.iloc[selected_indices]
-    num_ripples = 80 
     max_radius = 256 
     ripple_color = 'lightgray'  # Very light gray for all ripples
     for i, (idx, row) in enumerate(selected_positions.iterrows()):
@@ -71,7 +59,7 @@ def create_visualization(building_details, positions, cluster_labels, cluster_ce
                         edgecolors='darkblue',
                         linewidth=1,
                         label='Candidate Tx Locations',
-                        zorder=5)  # Higher z-order to appear above ripples
+                        zorder=5)  
     
     ax.scatter(selected_positions['X'], selected_positions['Y'], 
               c='red', 
@@ -95,34 +83,29 @@ def create_visualization(building_details, positions, cluster_labels, cluster_ce
     ax.set_xlim(x_min - margin, x_max + margin)
     ax.set_ylim(y_min - margin, y_max + margin)
     plt.tight_layout()
-    with PdfPages('transmitter_selection_kmeans.pdf') as pdf:
+    with PdfPages('Tx_selection_kmeans.pdf') as pdf:
         pdf.savefig(fig, dpi=300, bbox_inches='tight')
-        print("Plot saved as 'transmitter_selection_kmeans.pdf'")
     plt.show()
-    
     return fig
 
 def print_results(selected_positions, cluster_centers):
     print("\n" + "="*50)
-    print("K-MEANS TRANSMITTER SELECTION RESULTS")
     print("="*50)
     print(f"\nSelected Transmitter Locations:")
     for i, pos in enumerate(selected_positions):
         print(f"Transmitter {i+1}:")
         print(f"  Position: ({pos['X']}, {pos['Y']})")
         if 'Azimuth' in pos:
-            print(f"  Azimuth: {pos['Azimuth']}°")
-        print(f"  Signal Diffusion: Multi-layer ripples with decreasing intensity")
-        print()
+            print(f"  Azimuth: {pos['Azimuth']}")
 
 def main():
-    print("Starting K-means Transmitter Selection Analysis...")
+    print("Tx Selection Analysis...")
     print("-" * 50)
     building_details, positions = load_data()
     cluster_labels, cluster_centers, selected_indices, selected_positions = perform_kmeans_clustering(positions, k=3)
     fig = create_visualization(building_details, positions, cluster_labels, cluster_centers, selected_indices)
     print_results(selected_positions, cluster_centers)
-    print("Analysis completed successfully!")
+    print("Analysis completed")
     return selected_positions, cluster_centers
 
 if __name__ == "__main__":
