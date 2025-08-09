@@ -9,7 +9,7 @@
   "no_attn_mid_block": true,
   "num_channels": 3,
   "num_embeddings": 8192,
-  "num_res_blocks": 2,
+  "num_res_blocks": 8,
   "quantized_embed_dim": 64,
   "resample_with_conv": true,
   "resolution": 256,
