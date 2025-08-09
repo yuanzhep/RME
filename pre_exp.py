@@ -1,4 +1,3 @@
-# pre exp
 import os
 import torch
 import torchvision.transforms as T
@@ -14,12 +13,11 @@ LLAMA_CONFIG = ".../models/llama7b_config.json"
 LLAMA_WEIGHTS = ".../models/llama7b.bin"
 INPUT_DIR = ".../input"
 OUTPUT_DIR = ".../output"
-QUERY_NAME = ".../B25_Ant1_f1_S47"
+QUERY_NAME = ".../B24_Ant1_f1_S4"
 PROMPT_NAMES = [
-    # "B25_Ant1_f1_S40",
-    # "B25_Ant1_f1_S45"
+    # "B20_Ant1_f1_S4",
+    # "B20_Ant1_f1_S45"
 ]
-
 vqgan = VQGAN(VQGAN_CONFIG, VQGAN_WEIGHTS).to(DEVICE).eval()
 llama = LLaMAAutoregressiveModel(LLAMA_CONFIG, LLAMA_WEIGHTS).to(DEVICE).eval()
 
@@ -49,7 +47,6 @@ query_tensor = load_tensor_from_png(os.path.join(INPUT_DIR, QUERY_NAME + ".png")
 z_query_out = vqgan.encode(query_tensor)
 z_query_in = z_query_out[2] if isinstance(z_query_out, tuple) else z_query_out
 z_query_in = z_query_in.view(-1)  # shape: [256]
-
 final_sequence = torch.cat([sequence, z_query_in], dim=0).unsqueeze(0)  # shape: [1, T]
 
 with torch.no_grad():
