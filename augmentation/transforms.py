@@ -47,7 +47,6 @@ class RandomRotation(RadioMapTransform):
             output_img = np.rot90(output_img, k)
         return input_img, output_img
 
-
 class RandomCrop(RadioMapTransform):
     def __init__(self, size: Union[int, Tuple[int, int]], p: float = 0.5):
         if isinstance(size, int):
@@ -99,7 +98,6 @@ class AddGaussianNoise(RadioMapTransform):
             noise = np.random.normal(0, self.noise_std, input_img.shape)
             input_img = np.clip(input_img + noise, 0, 1)
         return input_img, output_img
-
 
 class RandomBrightness(RadioMapTransform):
     def __init__(self, brightness_range: Tuple[float, float] = (0.8, 1.2), p: float = 0.5):
@@ -187,7 +185,6 @@ class Resize(RadioMapTransform):
         output_img = cv2.resize(output_img, self.size, interpolation=cv2.INTER_CUBIC)
         return input_img, output_img
 
-
 class Normalize(RadioMapTransform):
     def __init__(self, input_range: Tuple[float, float] = (0, 255)):
         self.input_range = input_range
@@ -197,3 +194,4 @@ class Normalize(RadioMapTransform):
         input_img = np.clip(input_img, 0, 1)
 
         return input_img, output_img
+
