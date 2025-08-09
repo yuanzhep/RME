@@ -15,14 +15,13 @@ model = AutoModelForCausalLM.from_pretrained(
 ).eval()
 print("Model loaded")
 
-full_seq = np.load(input_path)  # shape: [5, H, W]
-flat_seq = full_seq.reshape(full_seq.shape[0], -1)  # [5, T]
+full_seq = np.load(input_path)  
+flat_seq = full_seq.reshape(full_seq.shape[0], -1) 
 prompt_list = flat_seq[:4]  
 query_T = flat_seq[4]     
 input_ids = np.concatenate(prompt_list).astype(np.int64)
 input_ids = torch.tensor(input_ids, dtype=torch.long).unsqueeze(0)
 print(f"Total prompt token length: {input_ids.shape[1]}")
-
 max_new = query_T.shape[0]  
 with torch.no_grad():
     outputs = model.generate(
