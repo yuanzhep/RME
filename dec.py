@@ -11,14 +11,10 @@ llama_dir = ".../llama"
 vqgan_ckpt = ".../models/pytorch_model.bin"
 vqgan_config = ".../models/config.json"
 token_input_path = ".../llama_input/prompt_sequence.npy"
-output_save_path = ".../predict/..."
-
-print("Loading LLaMA model...")
+output_save_path = ".../predict"
 config = AutoConfig.from_pretrained(llama_dir, trust_remote_code=True)
 model = AutoModelForCausalLM.from_pretrained(llama_dir, config=config, trust_remote_code=True)
 model.cuda().eval()
-
-print("Loading VQ-GAN decoder...")
 with open(vqgan_config, "r") as f:
     vq_cfg = json.load(f)
 print("Loaded VQ-GAN config:", vq_cfg)
@@ -42,7 +38,6 @@ vqgan = VQModel(
     embed_dim=vq_cfg["quantized_embed_dim"]
 )
 vqgan.cuda().eval()
-
 print("Working with z of shape (1, {}, 16, 16) = {} dimensions.".format(
     vq_cfg["z_channels"], vq_cfg["z_channels"] * 16 * 16))
 
@@ -51,12 +46,10 @@ state_dict = torch.load(vqgan_ckpt, map_location="cpu")
 if "state_dict" in state_dict:
     state_dict = state_dict["state_dict"]
 vqgan.load_state_dict(state_dict, strict=False)
-
 print("Loading input token sequence...")
 input_tokens = np.load(token_input_path)
 input_tokens = torch.tensor(input_tokens).unsqueeze(0).cuda()  
-
-print("Generating token output...")
+print("Generating output...")
 with torch.no_grad():
     generated = model.generate(
         input_tokens,
@@ -64,21 +57,17 @@ with torch.no_grad():
         do_sample=False,
         pad_token_id=0
     )
-
+    
 pred_tokens = generated[:, input_tokens.shape[1]:]
 print("Generated token shape:", pred_tokens.shape)
-
-assert pred_tokens.shape[1] == 256, f"Expected 256 tokens, got {pred_tokens.shape[1]}"
-
+assert pred_tokens.shape[1] == 256, f"256 tokens, got {pred_tokens.shape[1]}"
 print("Decoding tokens to image...")
 pred_tokens = pred_tokens[0].detach().cpu().numpy().reshape(16, 16)
 pred_tokens = torch.tensor(pred_tokens).unsqueeze(0).long().cuda()  # (1, 16, 16)
-
 with torch.no_grad():
     decoded = vqgan.decode(pred_tokens)  
-
 decoded = decoded.squeeze().cpu().clamp(0, 1) 
 decoded_img = T.ToPILImage()(decoded)
 decoded_img = decoded_img.resize((256, 256), Image.BICUBIC)
 decoded_img.save(output_save_path)
-print(f"Saved predicted image to: {output_save_path}")
+print(f"Saved predicted map to: {output_save_path}")
