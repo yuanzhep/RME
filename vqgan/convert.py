@@ -15,24 +15,21 @@ from torch.utils.data import DataLoader
 from load import encode_transform, load_model
 
 torch.set_grad_enabled(False)
-# random.seed(42)
 random_seed = 42
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(random_seed)
-
 parser = argparse.ArgumentParser()
-parser.add_argument("--folder_path", type=str, default='.../data/laion400m-images/part0/')
-parser.add_argument("--extract_path", type=str, default='.../laion400m-images/part0_jpg/')
+parser.add_argument("--folder_path", type=str, default='.../data/...')
+parser.add_argument("--extract_path", type=str, default='.../')
 parser.add_argument("--prefix", type=str, default='laion_part0')
 parser.add_argument("--num_processes", type=int, default=10)
-parser.add_argument("--data", type=str, default='.../cache/laion_jpg/part0/')  # folder of unziped imgs
-parser.add_argument("--batch_size", type=str, default=256)  # folder of imgs
-parser.add_argument("--type", type=str, default="internlm")
-parser.add_argument("--output", type=str, default=".../cache/laion_train_convert/part0/")
-parser.add_argument("--model_name_or_path", type=str, default=".../cache/ckpt/vqgan-f16-8192-laion")
+parser.add_argument("--data", type=str, default='.../part0/')  
+parser.add_argument("--batch_size", type=str, default=256)  
+parser.add_argument("--output", type=str, default=".../part0/")
+parser.add_argument("--model_name_or_path", type=str, default=".../ckpt/vqgan-f16-8192")
 args = parser.parse_args()
 args.data = args.extract_path
 unzip_start_time = time.time()
@@ -56,26 +53,21 @@ def extract_tar(tar_info):
 def extract_all_tarfiles_parallel(folder_path, extract_path, prefix, num_processes=4):
     file_list = [file for file in os.listdir(folder_path) if file.endswith('.tar')]
     tar_info_list = [(tar_file, folder_path, extract_path, prefix) for tar_file in file_list]
-    
     with Pool(num_processes) as pool:
         pool.map(extract_tar, tar_info_list)
 
-
 extract_all_tarfiles_parallel(args.folder_path, args.extract_path, args.prefix, args.num_processes)
-print('########### unzip time: ', time.time() - unzip_start_time)
-
+print('unzip time: ', time.time() - unzip_start_time)
 convert_start_time = time.time()
 
 def list_subdir(folder_path):
     subdir = [f.name for f in os.scandir(folder_path) if f.is_dir()]
     return subdir
-
+    
 dir_names = list_subdir(args.data)
-
-print('Strating convert via vqgan...')
+print('convert via vqgan...')
 print(args)
 print(len(dir_names))
-
 vq_model = load_model(args.model_name_or_path)
 vq_model = vq_model.cuda().eval()
 
@@ -96,33 +88,23 @@ def dumps(data):
     saved_bin = str.encode(json.dumps(dict(tokens=data)) + "\n")
     return {"bin": saved_bin, "length": seqlen}
 
-
 for idx, sub_dir_name in enumerate(dir_names):
     if idx % 10 == 0:
         print(idx)
-    
     output_dir = os.path.join(args.output, sub_dir_name)
-    
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
     out_bin = os.path.join(output_dir, "train.bin")
     out_meta = os.path.join(output_dir, "train.bin.meta")
-    
     pathlib.Path(out_bin).touch(exist_ok=True)
     pathlib.Path(out_meta).touch(exist_ok=True)
-    
     dataset = ImageDataset(os.path.join(args.data, sub_dir_name), transform=encode_transform)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
-    
     from tqdm import tqdm
-    
-    cu = 0
     cu_seqlens = []
     with open(out_bin, "wb+") as bin_file:
         for i, (imgs, _) in enumerate(tqdm(loader)):
             imgs = imgs.cuda()
             quantized_states, indices = encoder(imgs)
-            
             for indices_i in indices.tolist():
                 token = dumps(indices_i)
                 seqlen = token["length"]  # 256
@@ -134,6 +116,5 @@ for idx, sub_dir_name in enumerate(dir_names):
     cu_seqlens = np.array(cu_seqlens, dtype=np.int64)
     with open(out_meta, "wb+") as meta_file:
         np.save(meta_file, cu_seqlens)
-
 print('########### unzip time: ', time.time() - convert_start_time)
 print('Finish convert...')
