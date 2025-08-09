@@ -1,33 +1,20 @@
-
 import os
 import glob
 from functools import partial
 from tempfile import NamedTemporaryFile
 import random
 import json
-from base64 import b64encode
 from tqdm import tqdm, trange
 from muse import VQGANModel
-
 import numpy as np
-np.float = np.float64
-np.int = np.int_
 import mlxu
-
 import torch
-
-
 import einops
-
 from PIL import Image
-
 from utils import (
     list_dir_with_full_path, is_image, read_image_to_tensor,
     randomly_subsample_frame_indices
 )
-
-
-
 
 FLAGS, _ = mlxu.define_flags_with_default(
     input_dirs='',
@@ -40,9 +27,7 @@ FLAGS, _ = mlxu.define_flags_with_default(
     dtype='fp32',
 )
 
-
 class VideoDataset(torch.utils.data.Dataset):
-
     def __init__(self, videos, n_frames=8):
         self.videos = videos
         self.n_frames = n_frames
@@ -64,20 +49,12 @@ class VideoDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.videos)
 
-
 def main(argv):
     assert FLAGS.input_dirs != ''
     assert FLAGS.output_file != ''
-
-    # Load the pre-trained vq model from the hub
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    net = VQGANModel.from_pretrained('vqlm/muse/ckpts/laion').to(device)
+    net = VQGANModel.from_pretrained('.../vqlm/...').to(device)
     net.eval()
-
-    # videos = list_dir_with_full_path(FLAGS.input_dir)
-    videos = glob.glob(FLAGS.input_dirs)
-
     with torch.no_grad():
         with open(FLAGS.output_file, 'w') as fout:
             dataset = VideoDataset(videos, n_frames=FLAGS.n_frames)
@@ -103,8 +80,5 @@ def main(argv):
                     for i in range(batch_size):
                         data = {'tokens': b64encode(tokens[i].tobytes()).decode('utf-8')}
                         fout.write(json.dumps(data) + '\n')
-
-
-
 if __name__ == '__main__':
     mlxu.run(main)
