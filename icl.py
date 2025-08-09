@@ -44,9 +44,9 @@ class RIPPLEConfig:
         self.vqgan_weights = ".../models/vqgan/pytorch_model.bin"
         self.llama_config = ".../models/llama/config.json"
         self.llama_model_dir = ".../models/llama"
-        self.prompt_input_dir = ".../data/prompts/inputs"
-        self.prompt_output_dir = ".../data/prompts/outputs"
-        self.query_dir = ".../data/queries"
+        self.prompt_input_dir = ".../prompts/input"
+        self.prompt_output_dir = ".../prompts/output"
+        self.query_dir = ".../queries"
         self.prediction_output_dir = ".../predictions"
         self.database_dir = ".../database"
         os.makedirs(self.prediction_output_dir, exist_ok=True)
@@ -289,10 +289,8 @@ class RIPPLESystem:
     def construct_prompts_case1(self, layout_dir: str) -> List[Tuple[torch.Tensor, torch.Tensor, Tuple[int, int]]]:
         """Case 1: Prompt construction within the same layout."""
         logging.info(f"Case 1: Constructing {self.config.K} prompts using spatial diversity")
-        
         H, W = self.config.image_size, self.config.image_size
         positions = [(i, j) for i in range(20, H-20, 10) for j in range(20, W-20, 10)]
-        
         if len(positions) < self.config.K:
             logging.warning(f"Not enough positions ({len(positions)}) for K={self.config.K}")
             selected_positions = positions
@@ -315,49 +313,39 @@ class RIPPLESystem:
         for i, tx_pos in enumerate(selected_positions):
             input_path = os.path.join(layout_dir, f"input_{i}.png")
             output_path = os.path.join(layout_dir, f"output_{i}.png")
-            
             input_img = self.load_image(input_path)
             output_img = self.load_image(output_path)
-            
             prompts.append((input_img, output_img, tx_pos))
             logging.info(f"Loaded prompt {i+1}: Tx at {tx_pos}")
-        
+    
         return prompts
     
     def construct_prompts_case2(self, query_img: torch.Tensor) -> List[Tuple[torch.Tensor, torch.Tensor, Tuple[int, int]]]:
         """Case 2: Prompt retrieval from database using similarity."""
         logging.info(f"Case 2: Retrieving {self.config.K} prompts from database")
-        
         with torch.no_grad():
             query_features = self.vqgan.encoder(query_img).flatten(1)
-        
         database_path = os.path.join(self.config.database_dir, "database.json")
         if not os.path.exists(database_path):
             logging.warning("Database not found")
             return self._generate_random_prompts()
-        
         try:
             with open(database_path, 'r') as f:
                 database_info = json.load(f)
-            
             similarities = []
             for entry in database_info:
                 db_img = self.load_image(entry['input_path'])
                 with torch.no_grad():
                     db_features = self.vqgan.encoder(db_img).flatten(1)
-                
                 sim = F.cosine_similarity(query_features, db_features, dim=1).item()
                 similarities.append((sim, entry))
-            
             similarities.sort(key=lambda x: x[0], reverse=True)
             selected_entries = similarities[:self.config.K]
-            
             prompts = []
             for i, (sim, entry) in enumerate(selected_entries):
                 input_img = self.load_image(entry['input_path'])
                 output_img = self.load_image(entry['output_path'])
                 tx_pos = tuple(entry['tx_position'])
-                
                 prompts.append((input_img, output_img, tx_pos))
                 logging.info(f"Retrieved prompt {i+1}: similarity={sim:.3f}, Tx at {tx_pos}")
             
@@ -379,19 +367,15 @@ class RIPPLESystem:
     def create_ripple_order(self, tokens: torch.Tensor, tx_pos: Tuple[int, int]) -> torch.Tensor:
         B, T = tokens.shape
         h = w = int(math.sqrt(T)) 
-        
         tx_h = int(tx_pos[0] * h / self.config.image_size)
         tx_w = int(tx_pos[1] * w / self.config.image_size)
-        
         coords = []
         for i in range(h):
             for j in range(w):
                 dist = math.sqrt((i - tx_h) ** 2 + (j - tx_w) ** 2)
                 coords.append((dist, i * w + j, tokens[0, i * w + j].item()))
-        
         # ripple order
         coords.sort(key=lambda x: x[0])
-        
         # ripple-ordered sequence
         ripple_tokens = torch.tensor([coord[2] for coord in coords], 
                                    dtype=tokens.dtype, device=tokens.device)
@@ -401,23 +385,22 @@ class RIPPLESystem:
     def create_icl_sequence(self, prompts: List[Tuple[torch.Tensor, torch.Tensor, Tuple[int, int]]], 
                            query_tokens: torch.Tensor, query_tx_pos: Tuple[int, int]) -> torch.Tensor:
         sequence = []
-        
         for input_img, output_img, tx_pos in prompts:
             with torch.no_grad():
                 _, _, input_tokens = self.vqgan.encode(input_img)
                 _, _, output_tokens = self.vqgan.encode(output_img)
             
-            # ripple ordering
+            # ripple
             input_ripple = self.create_ripple_order(input_tokens.view(1, -1), tx_pos)
             output_ripple = self.create_ripple_order(output_tokens.view(1, -1), tx_pos)
             
-            # interleaved sequence
+            # interleaved seq
             for inp_token, out_token in zip(input_ripple[0], output_ripple[0]):
                 sequence.extend([inp_token.item(), out_token.item()])
             
             sequence.append(self.config.sep_token) 
         
-        # Add query with ripple ordering
+        # Add query
         query_ripple = self.create_ripple_order(query_tokens.view(1, -1), query_tx_pos)
         sequence.extend(query_ripple[0].tolist())
         sequence.append(self.config.sep_token)
@@ -454,7 +437,7 @@ class RIPPLESystem:
         self_context = []
         query_flat = query_tokens.view(-1)
         
-        # Interleave input and predicted tokens
+        # Interleave input and predicted
         min_len = min(len(query_flat), len(stage1_tokens))
         for i in range(min_len):
             self_context.extend([query_flat[i].item(), stage1_tokens[i].item()])
@@ -478,13 +461,10 @@ class RIPPLESystem:
                 next_logits = logits[0, -1, :] / self.config.temperature
                 next_logits[:10] = float('-inf')
                 next_logits[self.config.codebook_size:] = float('-inf')
-                
                 probs = F.softmax(next_logits, dim=-1)
                 next_token = torch.multinomial(probs, 1)
-                
                 current_seq = torch.cat([current_seq, next_token.unsqueeze(0)], dim=1)
                 generated_tokens.append(next_token.item())
-                
                 if next_token.item() == self.config.end_token:
                     break
         
@@ -504,7 +484,7 @@ class RIPPLESystem:
         with torch.no_grad():
             _, _, query_tokens = self.vqgan.encode(query_img)
         
-        # Construct prompts based on case
+        # Construct prompts
         if case == 1:
             prompts = self.construct_prompts_case1(self.config.prompt_input_dir)
         else:
@@ -520,7 +500,7 @@ class RIPPLESystem:
         # Stage II
         stage2_tokens = self.stage2_refinement(icl_sequence, stage1_tokens, query_tokens, num_tokens=256)
         
-        # Reconstruct final
+        # Reconstruct
         final_prediction = self.reconstruct_radio_map(stage2_tokens, query_tx_pos)
         results = self.save_results(query_file, final_prediction, stage1_tokens, stage2_tokens)
         
@@ -617,52 +597,38 @@ class RIPPLESystem:
         }
     
     def compute_metrics(self, pred_path: str, gt_path: str) -> Dict[str, float]:
-        """Compute evaluation metrics between prediction and ground truth."""
+        """Compute evaluation metrics between prediction and GT."""
         try:
             if not os.path.exists(pred_path) or not os.path.exists(gt_path):
                 return {"rmse": float('inf'), "mae": float('inf'), "psnr": 0.0}
             
-            pred_img = Image.open(pred_path).convert('RGB')
-            gt_img = Image.open(gt_path).convert('RGB')
-            
+            pred_img = Image.open(pred_path).convert()
+            gt_img = Image.open(gt_path).convert()
             pred_img = pred_img.resize((self.config.image_size, self.config.image_size))
             gt_img = gt_img.resize((self.config.image_size, self.config.image_size))
-            
             pred_array = np.array(pred_img, dtype=np.float32) / 255.0
             gt_array = np.array(gt_img, dtype=np.float32) / 255.0
-            
             mse = np.mean((pred_array - gt_array) ** 2)
             rmse = np.sqrt(mse)
-            mae = np.mean(np.abs(pred_array - gt_array))
-            
-            if mse > 0:
-                psnr = 20 * np.log10(1.0 / np.sqrt(mse))
-            else:
-                psnr = float('inf')
-            
-            logging.info(f"Metrics - RMSE: {rmse:.4f}, MAE: {mae:.4f}, PSNR: {psnr:.2f} dB")
-            return {"rmse": rmse, "mae": mae, "psnr": psnr}
+            logging.info(f"Metrics - RMSE: {rmse:.3f})
+            return {"rmse": rmse}
             
         except Exception as e:
             logging.error(f"Error computing metrics: {e}")
-            return {"rmse": float('inf'), "mae": float('inf'), "psnr": 0.0}
+            return {"rmse": float('inf')}
     
     def analyze_ripple_structure(self, tokens: torch.Tensor, tx_pos: Tuple[int, int]) -> Dict[str, Any]:
         logging.info("Analyzing ripple structure...")
-        
         try:
             num_tokens = len(tokens)
             grid_size = int(math.sqrt(num_tokens))
-            
             if grid_size * grid_size != num_tokens:
                 logging.warning(f"Token count {num_tokens} is not a perfect square")
                 return {}
             
             token_grid = tokens.view(grid_size, grid_size).cpu().numpy()
-            
             tx_h = int(tx_pos[0] * grid_size / self.config.image_size)
             tx_w = int(tx_pos[1] * grid_size / self.config.image_size)
-            
             distances = []
             token_values = []
             
@@ -674,9 +640,7 @@ class RIPPLESystem:
             
             distances = np.array(distances)
             token_values = np.array(token_values)
-            
             correlation = np.corrcoef(distances, token_values)[0, 1]
-            
             sorted_indices = np.argsort(distances)
             ripple_order_consistency = 0
             for i in range(len(sorted_indices) - 1):
@@ -684,7 +648,6 @@ class RIPPLESystem:
                     ripple_order_consistency += 1
             
             ripple_order_consistency /= (len(sorted_indices) - 1)
-            
             return {
                 'distance_token_correlation': float(correlation),
                 'ripple_order_consistency': float(ripple_order_consistency),
@@ -700,9 +663,7 @@ class RIPPLESystem:
 def create_visualization(results: Dict[str, Any], config: RIPPLEConfig):
     try:
         import matplotlib.pyplot as plt
-        
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        
         if os.path.exists(results['stage1_path']):
             stage1_img = Image.open(results['stage1_path'])
             axes[0].imshow(stage1_img)
@@ -718,17 +679,13 @@ def create_visualization(results: Dict[str, Any], config: RIPPLEConfig):
         metrics = results['metrics']
         metric_names = list(metrics.keys())
         metric_values = list(metrics.values())
-        
         axes[2].bar(metric_names, metric_values)
         axes[2].set_title('Evaluation Metrics')
         axes[2].set_ylabel('Value')
-        
         plt.tight_layout()
-        
         viz_path = os.path.join(config.prediction_output_dir, 'two_stage_comparison.png')
         plt.savefig(viz_path, dpi=300, bbox_inches='tight')
         plt.close()
-        
         logging.info(f"Visualization saved to: {viz_path}")
         
     except Exception as e:
@@ -741,29 +698,22 @@ def main():
     parser.add_argument('--case', type=int, choices=[1, 2], default=1, 
                        help='Case 1: same layout, Case 2: different layouts (default: 1)')
     parser.add_argument('--visualize', action='store_true', help='Create result visualizations')
-    
     args = parser.parse_args()
-
     log_filename = setup_logging(args.K, args.query)
-    
     try:
         config = RIPPLEConfig(K=args.K, query_file=args.query)
         config.temperature = args.temperature
         ripple_system = RIPPLESystem(config)
-
         results = ripple_system.predict_radio_map(args.query, case=args.case)
-        
         if args.analyze:
             logging.info("Performing ripple structure analysis...")
-            
             with open(results['tokens_path'], 'r') as f:
                 tokens_data = json.load(f)
-            
+        
             stage1_tokens = torch.tensor(tokens_data['stage1_tokens'])
             stage2_tokens = torch.tensor(tokens_data['stage2_tokens'])
-            
-            stage1_analysis = ripple_system.analyze_ripple_structure(stage1_tokens, (128, 128))
-            stage2_analysis = ripple_system.analyze_ripple_structure(stage2_tokens, (128, 128))
+            stage1_analysis = ripple_system.analyze_ripple_structure(stage1_tokens, (256, 256))
+            stage2_analysis = ripple_system.analyze_ripple_structure(stage2_tokens, (256, 256))
             
             logging.info("Stage I Analysis:")
             for key, value in stage1_analysis.items():
@@ -776,7 +726,7 @@ def main():
         if args.visualize:
             create_visualization(results, config)
         
-        logging.info("\n" + "="*70)
+        logging.info("\n" + "="*50)
         logging.info("RIPPLE TWO-STAGE PREDICTION SUMMARY")
         logging.info("="*70)
         logging.info(f"Query: {args.query}")
@@ -787,7 +737,7 @@ def main():
         logging.info(f"Final prediction: {results['prediction_path']}")
         metrics = results['metrics']
         logging.info(f"RMSE: {metrics['rmse']:.3f}")
-        logging.info("="*70)
+        logging.info("="*50)
         return results
         
     except Exception as e:
