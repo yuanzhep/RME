@@ -49,7 +49,7 @@ class VQGAN(nn.Module):
             state_dict = state_dict["state_dict"]
         new_state_dict = {k.replace("model.", ""): v for k, v in state_dict.items()}
         model.load_state_dict(new_state_dict, strict=False)
-        print("[\u2713] VQGAN weights loaded")
+        print("VQGAN weights loaded")
         return model
 
     @torch.no_grad()
