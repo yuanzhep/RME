@@ -19,7 +19,6 @@ def get_obj_from_str(string, reload=False):
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
 
-
 def get_parser(**parser_kwargs):
     def str2bool(v):
         if isinstance(v, bool):
@@ -103,19 +102,16 @@ def get_parser(**parser_kwargs):
 
     return parser
 
-
 def nondefault_trainer_args(opt):
     parser = argparse.ArgumentParser()
     parser = Trainer.add_argparse_args(parser)
     args = parser.parse_args([])
     return sorted(k for k in vars(args) if getattr(opt, k) != getattr(args, k))
 
-
 def instantiate_from_config(config):
     if not "target" in config:
         raise KeyError("Expected key `target` to instantiate.")
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
-
 
 class WrappedDataset(Dataset):
     """Wraps an arbitrary object with __len__ and __getitem__ into a pytorch dataset"""
@@ -127,7 +123,6 @@ class WrappedDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.data[idx]
-
 
 class DataModuleFromConfig(pl.LightningDataModule):
     def __init__(self, batch_size, train=None, validation=None, test=None,
@@ -172,7 +167,6 @@ class DataModuleFromConfig(pl.LightningDataModule):
         return DataLoader(self.datasets["test"], batch_size=self.batch_size,
                           num_workers=self.num_workers, collate_fn=custom_collate)
 
-
 class SetupCallback(Callback):
     def __init__(self, resume, now, logdir, ckptdir, cfgdir, config, lightning_config):
         super().__init__()
@@ -211,7 +205,6 @@ class SetupCallback(Callback):
                     os.rename(self.logdir, dst)
                 except FileNotFoundError:
                     pass
-
 
 class ImageLogger(Callback):
     def __init__(self, batch_frequency, max_images, clamp=True, increase_log_steps=True):
