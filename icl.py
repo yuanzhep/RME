@@ -54,22 +54,12 @@ class RIPPLEConfig:
         self.query_dir = ".../data/queries"
         self.prediction_output_dir = ".../predictions"
         self.database_dir = ".../database"
-        
         os.makedirs(self.prediction_output_dir, exist_ok=True)
-    
         self.image_size = 256 
         self.latent_size = 16  
         self.codebook_size = 8192  
         self.embedding_dim = 64  
         self.downsampling_factor = 16  
-        self.max_sequence_length = 3500
-        self.temperature = 0.8
-        self.start_token = 0
-        self.sep_token = 1  
-        self.end_token = 2
-        
-        self.num_ripple_layers = 8  
-        
         logging.info(f"Config initialized: K={self.K}, Image size={self.image_size}x{self.image_size}")
 
 class VectorQuantizer(nn.Module):
@@ -93,10 +83,7 @@ class VectorQuantizer(nn.Module):
         # Find nearest codebook entries
         min_encoding_indices = torch.argmin(d, dim=1)
         z_q = self.embedding(min_encoding_indices).view(z.shape)
-        
-        # VQ loss
         loss = torch.mean((z_q.detach() - z) ** 2) + self.beta * torch.mean((z_q - z.detach()) ** 2)
-        
         z_q = z + (z_q - z).detach()
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
         
