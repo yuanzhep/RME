@@ -1,35 +1,28 @@
 #!/bin/bash
 
-echo "FROZEN CODEBOOK VQGAN PRETRAINING"
+echo "VQGAN PRETRAINING"
 echo "===================================="
-
 export CUDA_VISIBLE_DEVICES=0
-
-PRETRAINED_CODEBOOK_PATH="models/pytorch_model.bin"
-
+PRETRAINED_CODEBOOK_PATH=".../models/pytorch_model.bin"
 SCENE_DIR=".../ripple/dataset/..."
 PATHLOSS_DIR=".../ripple/dataset/..."
-
-EPOCHS=80          # "80 epochs"
-BATCH_SIZE=256        # "batch size of 256"
-LEARNING_RATE=1e-4   # "learning rate of 1×10^-4"
-COMMITMENT_WEIGHT=0.25  "λ = 0.25"
+EPOCHS=80         
+BATCH_SIZE=256      
+LEARNING_RATE=1e-4   
+COMMITMENT_WEIGHT=0.25  
 EMBED_DIM=256
 N_EMBED=8192
 CHANNELS=3
 IMAGE_SIZE=256
-
 CHECKPOINT_DIR="./checkpoints"
 
 mkdir -p $CHECKPOINT_DIR
-
 echo "Configuration:"
 echo "  Scene maps: $SCENE_DIR"
 echo "  Pathloss maps: $PATHLOSS_DIR"
 echo "  Pretrained codebook: $PRETRAINED_CODEBOOK_PATH"
 echo "  Training: $EPOCHS epochs, batch=$BATCH_SIZE, lr=$LEARNING_RATE"
 echo "  Commitment weight λ = $COMMITMENT_WEIGHT"
-echo ""
 
 # Check paths exist
 if [ ! -d "$SCENE_DIR" ]; then
@@ -52,7 +45,6 @@ echo "All paths verified"
 echo ""
 echo "Starting training..."
 
-# Run training
 python frozen.py \
     --scene_dir $SCENE_DIR \
     --pathloss_dir $PATHLOSS_DIR \
@@ -70,10 +62,7 @@ python frozen.py \
     2>&1 | tee $CHECKPOINT_DIR/training.log
 
 echo ""
-echo "Training completed"
+echo "completed"
 echo "Results saved in: $CHECKPOINT_DIR"
 echo "Training log: $CHECKPOINT_DIR/training.log"
 echo ""
-echo "  Codebook frozen - LLaMA compatibility maintained"
-echo "  Encoder optimized for scene tensors"
-echo "  Decoder optimized for pathloss reconstruction"
