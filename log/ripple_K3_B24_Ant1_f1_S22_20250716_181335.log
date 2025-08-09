@@ -1,8 +1,8 @@
-Log started at 2025-07-16 18:13:35
-Parameters: K=1, Query=B24_Ant1_f1_S22.png
+Log started at 2025-07-06 18:13:35
+Parameters: K=3, Query=B24_Ant1_f1_S22.png
 Device: cuda
 --------------------------------------------------
-=== RIPPLE In-Context Learning for Radio Map Estimation ===
+=== RIPPLE ===
 
 [1] Loaded models...
 Detected embedding dimension: 64
@@ -23,6 +23,6 @@ RMSE: 15.47 dB
 Saved prediction: prediction/prediction_K1_B24_Ant1_f1_S22.png
 
 === ICL Prediction Complete ===
-Log saved to: log/ripple_K1_B24_Ant1_f1_S22_20250716_181335.log
+Log saved to: .../log/ripple_K1_B24_Ant1_f1_S22_20250706_181335.log
 --------------------------------------------------
 Log ended at 2025-07-16 18:14:07
