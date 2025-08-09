@@ -28,7 +28,7 @@ class RepresentativeSampleVisualizer:
     def find_representative_samples(self, max_search=100):
         available_files = []
         for b in range(1, 25): 
-            for s in range(50):  # Samples 0-49
+            for s in range(50):  
                 filename = f"B{b}_Ant1_f1_S{s}.png"
                 input_file = os.path.join(self.input_path, filename)
                 output_file = os.path.join(self.output_path, filename)
@@ -365,4 +365,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
