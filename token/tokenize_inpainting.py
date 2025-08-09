@@ -9,24 +9,19 @@ from tqdm import tqdm, trange
 import glob
 import numpy as np
 import mlxu
-
 import torch
-
 import jax
 import jax.numpy as jnp
 import flax
 import einops
-
 from PIL import Image, UnidentifiedImageError
-
 from PIL import Image
 from muse import VQGANModel
 from utils import read_image_to_tensor, is_image, list_dir_with_full_path
 
-
 FLAGS, _ = mlxu.define_flags_with_default(
-    input_image_dir='/datasets/imagenet_22k_2024-01-04_1601',
-    output_file='./lvm/tokenized_muse/i22k_inpainting.jsonl',
+    input_image_dir='.../datasets/...',
+    output_file='.../lvm/...',
     batch_size=1,
     n_shots=8,
     n_epochs=5,
@@ -37,9 +32,7 @@ FLAGS, _ = mlxu.define_flags_with_default(
     layer = 1
 )
 
-
 class PairedImageDataset(torch.utils.data.Dataset):
-
     def __init__(self, images):
         self.images = images
 
@@ -78,25 +71,14 @@ class PairedImageDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.images)
 
-
 def main(argv):
     assert FLAGS.input_image_dir != ''
     assert FLAGS.output_file != ''
-
-    # Load the pre-trained vq model from the hub
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    net = VQGANModel.from_pretrained('vqlm/muse/ckpts/laion').to(device)
+    net = VQGANModel.from_pretrained('.../vqlm/...').to(device)
     net.eval()
-
-
-    # input_images = glob.glob('{}{}/*.png'.format(FLAGS.input_image_dir, '/*'*FLAGS.layer))
-    # input_images += glob.glob('{}{}/*.jpg'.format(FLAGS.input_image_dir, '/*' * FLAGS.layer))
-    # input_images += glob.glob('{}{}/*.jpeg'.format(FLAGS.input_image_dir, '/*' * FLAGS.layer))
     input_images = glob.glob('{}{}/*.JPEG'.format(FLAGS.input_image_dir, '/*' * FLAGS.layer))
 
-
-    # input_images = input_images[:100]
     dataset = PairedImageDataset(input_images)
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -111,12 +93,10 @@ def main(argv):
     with NamedTemporaryFile() as ntf:
         all_tokens = np.memmap(ntf, dtype='i4', mode='w+', shape=(total_images, 512))
         all_tokens[:] = 0
-
         index = 0
         for input_image_batch, output_image_batch in tqdm(dataloader, ncols=0):
             _, input_token_batch = net.encode(input_image_batch.permute(0, 3, 1, 2).to(device))
             _, output_token_batch = net.encode(output_image_batch.permute(0, 3, 1, 2).to(device))
-
             all_tokens[index:index + input_image_batch.shape[0]] = np.concatenate(
                 [input_token_batch.cpu().numpy().astype(np.int32), output_token_batch.cpu().numpy().astype(np.int32)],
                 axis=1
@@ -130,7 +110,6 @@ def main(argv):
                     tokens = all_tokens[indices[i], :].reshape(-1)
                     data = {'tokens': b64encode(tokens.tobytes()).decode('utf-8'),}
                     fout.write(json.dumps(data) + '\n')
-
 
 if __name__ == '__main__':
     mlxu.run(main)
