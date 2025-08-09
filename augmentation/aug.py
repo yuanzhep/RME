@@ -62,10 +62,8 @@ class AugmentedRadioMapDataset(Dataset):
     def __getitem__(self, idx):
         
         filename = self.file_names[idx]
-        
         input_path = os.path.join(self.input_path, filename + ".png")
         input_img = imread(input_path)
-        
         output_path = os.path.join(self.output_path, filename + ".png")
         output_img = imread(output_path)
         
@@ -92,20 +90,19 @@ class AugmentedRadioMapDataset(Dataset):
         
         if self.data_format == "CHW":
             if len(input_tensor.shape) == 3:
-                input_tensor = input_tensor.permute(2, 0, 1)  # HWC -> CHW
+                input_tensor = input_tensor.permute(2, 0, 1) 
             if len(output_tensor.shape) == 2:
-                output_tensor = output_tensor.unsqueeze(0)  # HW -> 1HW
+                output_tensor = output_tensor.unsqueeze(0)  
         
         return input_tensor, output_tensor, filename
     
     def get_sample_info(self, idx):
         filename = self.file_names[idx]
         parts = filename.split('_')
-        
-        building = int(parts[0][1:])  # Extract building number
-        antenna = int(parts[1][3:])   # Extract antenna number
-        freq = int(parts[2][1:])      # Extract frequency number
-        sample = int(parts[3][1:])    # Extract sample number
+        building = int(parts[0][1:]) 
+        antenna = int(parts[1][3:])   
+        freq = int(parts[2][1:])      
+        sample = int(parts[3][1:])    
         
         return {
             'building': building,
@@ -114,7 +111,6 @@ class AugmentedRadioMapDataset(Dataset):
             'sample': sample,
             'filename': filename
         }
-
 
 class DataAugmentationPresets:
     @staticmethod
@@ -132,7 +128,6 @@ class DataAugmentationPresets:
     
     @staticmethod
     def get_medium_augmentation():
-        """Medium augmentation for robust training"""
         from transforms import (RandomHorizontalFlip, RandomVerticalFlip, RandomRotation,
                               RandomScale, AddGaussianNoise, RandomBrightness, 
                               RandomContrast, Compose)
@@ -149,7 +144,6 @@ class DataAugmentationPresets:
     
     @staticmethod
     def get_heavy_augmentation():
-        """Heavy augmentation for maximum robustness"""
         from transforms import (RandomHorizontalFlip, RandomVerticalFlip, RandomRotation,
                               RandomScale, RandomCrop, AddGaussianNoise, RandomBrightness,
                               RandomContrast, RandomChannelShuffle, RandomElasticDeformation,
@@ -170,7 +164,6 @@ class DataAugmentationPresets:
     
     @staticmethod
     def get_vqgan_pretraining_augmentation():
-        """Optimized augmentation for VQGAN pretraining"""
         from transforms import (RandomHorizontalFlip, RandomVerticalFlip, RandomRotation,
                               RandomScale, AddGaussianNoise, RandomBrightness, 
                               RandomContrast, Compose)
@@ -294,4 +287,3 @@ def create_dataloaders(input_path: str,
     print(f"  Test:  {len(test_loader)} batches ({len(test_indices)} samples)")
     
     return train_loader, val_loader, test_loader
-
