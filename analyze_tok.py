@@ -18,13 +18,10 @@ with open(token_freq_file, "r") as f:
 
 frequencies = sorted(frequencies, reverse=True)
 num_tokens = len(frequencies)
-
 cumulative = np.cumsum(frequencies)
 cumulative_percent = cumulative / cumulative[-1] * 100
-
 top_k_values = [10, 50, 100, 500]
 top_k_results = {k: cumulative[k-1] / cumulative[-1] * 100 for k in top_k_values if k <= num_tokens}
-
 txt_output_path = os.path.join(output_dir, "token_topk_summary.txt")
 with open(txt_output_path, "w") as f:
     f.write(f"Total unique tokens: {num_tokens}\n\n")
@@ -52,8 +49,3 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig(cdf_output)
 plt.close()
-
-print("Analysis completed.")
-print(f"Top-k summary saved to: {txt_output_path}")
-print(f"Log-scale histogram saved to: {log_hist_output}")
-print(f"CDF curve saved to: {cdf_output}")
