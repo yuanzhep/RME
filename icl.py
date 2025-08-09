@@ -16,7 +16,6 @@ from safetensors.torch import load_file
 import logging
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import cosine_similarity
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"Using device: {DEVICE}")
 
@@ -25,7 +24,6 @@ def setup_logging(K: int, query_file: str) -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     query_name = os.path.splitext(query_file)[0]
     log_filename = f"log/ripple_K{K}_{query_name}_{timestamp}.log"
-    
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -34,7 +32,6 @@ def setup_logging(K: int, query_file: str) -> str:
             logging.StreamHandler()
         ]
     )
-    
     logging.info(f"RIPPLE Two-Stage - K={K}, Query={query_file}, Device={DEVICE}")
     logging.info("-" * 70)
     return log_filename
@@ -43,12 +40,10 @@ class RIPPLEConfig:
     def __init__(self, K: int = 3, query_file: Optional[str] = None):
         self.K = max(1, K)  
         self.query_file = query_file
-        
         self.vqgan_config = ".../models/vqgan/config.json"
         self.vqgan_weights = ".../models/vqgan/pytorch_model.bin"
         self.llama_config = ".../models/llama/config.json"
         self.llama_model_dir = ".../models/llama"
-        
         self.prompt_input_dir = ".../data/prompts/inputs"
         self.prompt_output_dir = ".../data/prompts/outputs"
         self.query_dir = ".../data/queries"
@@ -56,7 +51,6 @@ class RIPPLEConfig:
         self.database_dir = ".../database"
         os.makedirs(self.prediction_output_dir, exist_ok=True)
         self.image_size = 256 
-        self.latent_size = 16  
         self.codebook_size = 8192  
         self.embedding_dim = 64  
         self.downsampling_factor = 16  
@@ -68,14 +62,12 @@ class VectorQuantizer(nn.Module):
         self.n_embed = n_embed
         self.embed_dim = embed_dim
         self.beta = beta
-        
         self.embedding = nn.Embedding(n_embed, embed_dim)
         self.embedding.weight.data.uniform_(-1.0 / n_embed, 1.0 / n_embed)
     
     def forward(self, z: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.embed_dim)
-        
         d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
             torch.sum(self.embedding.weight ** 2, dim=1) - 2 * \
             torch.matmul(z_flattened, self.embedding.weight.t())
@@ -86,7 +78,6 @@ class VectorQuantizer(nn.Module):
         loss = torch.mean((z_q.detach() - z) ** 2) + self.beta * torch.mean((z_q - z.detach()) ** 2)
         z_q = z + (z_q - z).detach()
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
-        
         return z_q, loss, min_encoding_indices.view(z.shape[0], -1)
     
     def get_codebook_entry(self, indices: torch.Tensor) -> torch.Tensor:
@@ -100,7 +91,6 @@ class VQGAN(nn.Module):
     def __init__(self, config_path: str, weights_path: str, embed_dim: int = 64):
         super().__init__()
         self.embed_dim = embed_dim
-        
         self.config = self._load_config(config_path)
         self.encoder = self._make_encoder()
         self.decoder = self._make_decoder()
@@ -167,7 +157,6 @@ class VQGAN(nn.Module):
             B, T = indices.shape
             H = W = int(math.sqrt(T))
             indices = indices.view(B, H, W)
-        
         quant = self.quantize.get_codebook_entry(indices)
         dec = self.decoder(quant)
         return dec
@@ -200,27 +189,22 @@ class TransformerLayer(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         seq_len = x.size(1)
         causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
-        
         normed_x = self.ln1(x)
         attn_out, _ = self.attention(normed_x, normed_x, normed_x, attn_mask=causal_mask)
         x = x + attn_out
-        
         normed_x = self.ln2(x)
         ff_out = self.feed_forward(normed_x)
         x = x + ff_out
-        
         return x
 
-class SimpleLLaMA(nn.Module):
+class LLaMA(nn.Module):
     def __init__(self, config_path: str, model_dir: str):
         super().__init__()
-
         self.config = self._load_config(config_path)
         vocab_size = self.config["vocab_size"]
         hidden_size = self.config["hidden_size"]
         num_layers = self.config["num_layers"]
         num_heads = self.config["num_heads"]
-        
         self.embedding = nn.Embedding(vocab_size, hidden_size)
         self.pos_embedding = nn.Embedding(self.config["max_seq_len"], hidden_size)
         
@@ -228,7 +212,6 @@ class SimpleLLaMA(nn.Module):
             TransformerLayer(hidden_size, num_heads, self.config["intermediate_size"]) 
             for _ in range(num_layers)
         ])
-        
         self.ln_f = RMSNorm(hidden_size, eps=self.config["rms_norm_eps"])
         self.head = nn.Linear(hidden_size, vocab_size, bias=False)
         
@@ -242,7 +225,6 @@ class SimpleLLaMA(nn.Module):
             "num_layers": 32,
             "num_heads": 32,
             "max_seq_len": 4096,
-            "intermediate_size": 11008,
             "rms_norm_eps": 1e-6,
         }
         
@@ -265,15 +247,11 @@ class SimpleLLaMA(nn.Module):
         tok_emb = self.embedding(input_ids)
         pos_ids = torch.arange(T, device=input_ids.device).unsqueeze(0).expand(B, T)
         pos_emb = self.pos_embedding(pos_ids)
-        
         x = tok_emb + pos_emb
-
         for layer in self.layers:
             x = layer(x)
-        
         x = self.ln_f(x)
         logits = self.head(x)
-        
         return logits
 
 class RIPPLESystem:
@@ -287,7 +265,7 @@ class RIPPLESystem:
             config.embedding_dim
         ).to(DEVICE).eval()
         
-        self.llama = SimpleLLaMA(
+        self.llama = LLaMA(
             config.llama_config, 
             config.llama_model_dir
         ).to(DEVICE).eval()
@@ -532,7 +510,7 @@ class RIPPLESystem:
         else:
             prompts = self.construct_prompts_case2(query_img)
         
-        # ripple ordering
+        # ripple
         icl_sequence = self.create_icl_sequence(prompts, query_tokens, query_tx_pos)
         logging.info(f"ICL sequence length: {len(icl_sequence)}")
         
@@ -757,13 +735,11 @@ def create_visualization(results: Dict[str, Any], config: RIPPLEConfig):
         logging.warning(f"Could not create visualization: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description='RIPPLE Two-Stage')
+    parser = argparse.ArgumentParser(description='RIPPLE')
     parser.add_argument('--K', type=int, default=3, help='Number of prompts (default: 3)')
     parser.add_argument('--query', type=str, default="B24_Ant1_f1_S0.png", help='Query file name')
     parser.add_argument('--case', type=int, choices=[1, 2], default=1, 
                        help='Case 1: same layout, Case 2: different layouts (default: 1)')
-    parser.add_argument('--temperature', type=float, default=0.8, help='Sampling temperature')
-    parser.add_argument('--analyze', action='store_true', help='Perform ripple structure analysis')
     parser.add_argument('--visualize', action='store_true', help='Create result visualizations')
     
     args = parser.parse_args()
@@ -806,17 +782,12 @@ def main():
         logging.info(f"Query: {args.query}")
         logging.info(f"Case: {args.case}")
         logging.info(f"K (prompts): {args.K}")
-        logging.info(f"Temperature: {args.temperature}")
         logging.info(f"Stage I tokens: {results['stage1_tokens_count']}")
         logging.info(f"Stage II tokens: {results['stage2_tokens_count']}")
         logging.info(f"Final prediction: {results['prediction_path']}")
-        
         metrics = results['metrics']
-        logging.info(f"RMSE: {metrics['rmse']:.4f}")
-        logging.info(f"MAE: {metrics['mae']:.4f}")
-        logging.info(f"PSNR: {metrics['psnr']:.2f} dB")
+        logging.info(f"RMSE: {metrics['rmse']:.3f}")
         logging.info("="*70)
-        
         return results
         
     except Exception as e:
