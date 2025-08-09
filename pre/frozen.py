@@ -28,7 +28,6 @@ class RadioMapDataset(Dataset):
             if pathloss_file.exists():
                 self.file_pairs.append((scene_file, pathloss_file))
         
-        # Train/val split
         n_files = len(self.file_pairs)
         n_train = int(n_files * train_ratio)
         
@@ -92,7 +91,7 @@ class FrozenVectorQuantizer(nn.Module):
         z = z.permute(0, 2, 3, 1).contiguous()  # [B, H, W, C]
         z_flattened = z.view(-1, self.embed_dim)  # [B*H*W, C]
         
-        # Find nearest codebook entries (frozen)
+        # Find nearest codebook entries
         d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
             torch.sum(self.embedding.weight ** 2, dim=1) - 2 * \
             torch.matmul(z_flattened, self.embedding.weight.t())
@@ -116,7 +115,6 @@ class FrozenVectorQuantizer(nn.Module):
         return z_q
 
 class ResnetBlock(nn.Module):
-    """Residual block for encoder/decoder"""
     def __init__(self, in_channels, out_channels=None):
         super().__init__()
         self.in_channels = in_channels
@@ -135,11 +133,9 @@ class ResnetBlock(nn.Module):
         h = self.norm1(h)
         h = F.silu(h)
         h = self.conv1(h)
-        
         h = self.norm2(h)
         h = F.silu(h)
         h = self.conv2(h)
-        
         if self.in_channels != self.out_channels:
             x = self.nin_shortcut(x)
         
@@ -153,10 +149,8 @@ class Encoder(nn.Module):
         self.ch = ch
         self.num_resolutions = len(ch_mult)
         self.num_res_blocks = num_res_blocks
-        
         # Input convolution for 3-channel scene tensors
         self.conv_in = nn.Conv2d(in_channels, self.ch, 3, 1, 1)
-        
         # Downsampling
         curr_res = resolution
         in_ch_mult = (1,) + tuple(ch_mult)
@@ -182,7 +176,6 @@ class Encoder(nn.Module):
                 curr_res = curr_res // 2
             self.down.append(down)
         
-        # Middle
         self.mid = nn.Module()
         self.mid.block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in)
         self.mid.attn_1 = nn.GroupNorm(32, block_in)
@@ -215,7 +208,7 @@ class Encoder(nn.Module):
         return h
 
 class Decoder(nn.Module):
-    """Decoder for pathloss map reconstruction"""
+    """Decoder for PL map reconstruction"""
     
     def __init__(self, ch=128, out_ch=3, ch_mult=(1,2,4,8), num_res_blocks=2,
                  resolution=256, z_channels=256):
@@ -231,7 +224,6 @@ class Decoder(nn.Module):
         # Input from quantized features
         self.conv_in = nn.Conv2d(z_channels, block_in, 3, 1, 1)
         
-        # Middle
         self.mid = nn.Module()
         self.mid.block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in)
         self.mid.attn_1 = nn.GroupNorm(32, block_in)
@@ -264,11 +256,9 @@ class Decoder(nn.Module):
     
     def forward(self, z):
         h = self.conv_in(z)
-        
         h = self.mid.block_1(h)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h)
-        
         for i_level in reversed(range(self.num_resolutions)):
             for i_block in range(self.num_res_blocks + 1):
                 h = self.up[i_level].block[i_block](h)
@@ -285,9 +275,7 @@ class Decoder(nn.Module):
 class Discriminator(nn.Module):
     def __init__(self, input_nc=3, ndf=64, n_layers=3):
         super().__init__()
-        
         sequence = [nn.Conv2d(input_nc, ndf, 4, 2, 1), nn.LeakyReLU(0.2, True)]
-        
         nf_mult = 1
         nf_mult_prev = 1
         for n in range(1, n_layers):
@@ -315,7 +303,7 @@ class Discriminator(nn.Module):
         return self.model(input)
 
 class FrozenCodebookVQGAN(nn.Module):
-    """VQGAN with frozen codebook for radio map domain"""
+    """VQGAN with frozen codebook"""
     def __init__(self, embed_dim=256, n_embed=8192, ch=128, resolution=256,
                  pretrained_codebook=None):
         super().__init__()
@@ -343,7 +331,7 @@ class FrozenCodebookVQGAN(nn.Module):
     
     def forward(self, input_data, mode='scene'):
         """
-        mode: 'scene' (train encoder) or 'pathloss' (train decoder)
+        mode: 'scene' (update encoder) or 'PL' (update decoder)
         """
         if mode == 'scene':
             # Scene tensor processing: train encoder, freeze decoder
@@ -430,7 +418,6 @@ def train_frozen_codebook_vqgan(args):
         shuffle=False, num_workers=args.num_workers
     )
     
-    # Models
     vqgan = FrozenCodebookVQGAN(
         embed_dim=args.embed_dim,
         n_embed=args.n_embed,
@@ -439,35 +426,29 @@ def train_frozen_codebook_vqgan(args):
         pretrained_codebook=pretrained_codebook
     ).to(DEVICE)
     
-    # Discriminator G(·) as per paper notation
     discriminator_G = Discriminator(input_nc=3).to(DEVICE)
     
-    # Optimizers as specified: Adam, lr=1e-4
+    # Adam, lr=1e-4
     opt_encoder = optim.Adam(vqgan.encoder.parameters(), lr=args.lr, betas=(0.5, 0.9))
     opt_decoder = optim.Adam(vqgan.decoder.parameters(), lr=args.lr, betas=(0.5, 0.9))
     opt_disc = optim.Adam(discriminator_G.parameters(), lr=args.lr, betas=(0.5, 0.9))
-    
-    # Loss functions
     l2_loss = nn.MSELoss()  # L_rec = L2 loss as specified
     bce_loss = nn.BCEWithLogitsLoss()  # For adversarial loss
     
-    print("Starting Frozen Codebook Training")
+    print("Starting Training")
     print(f"Parameters: {args.epochs} epochs, batch_size={args.batch_size}, lr={args.lr}")
     print(f"Commitment weight λ = {args.commitment_weight}")
-    
     best_val_loss = float('inf')
     
     for epoch in range(args.epochs):
         vqgan.train()
         discriminator_G.train()
-        
         epoch_stats = {
             'scene_batches': 0, 'pathloss_batches': 0,
             'encoder_loss': 0, 'decoder_loss': 0, 'disc_loss': 0,
             'commitment_loss': 0, 'adversarial_loss': 0
         }
         
-        # Interleaved training as specified in paper
         pbar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{args.epochs}')
         
         for i, batch in enumerate(pbar):
@@ -477,71 +458,51 @@ def train_frozen_codebook_vqgan(args):
             if i % 2 == 0:
                 # Scene tensor batch: train encoder only
                 opt_encoder.zero_grad()
-                
                 scene_recon, commitment_loss, _ = vqgan(scene_tensors, mode='scene')
-                
                 # Loss: L_rec + λ * L_commit (no adversarial for scene)
                 rec_loss = l2_loss(scene_recon, scene_tensors)
                 encoder_loss = rec_loss + args.commitment_weight * commitment_loss
-                
                 encoder_loss.backward()
                 opt_encoder.step()
-                
                 epoch_stats['scene_batches'] += 1
                 epoch_stats['encoder_loss'] += encoder_loss.item()
                 epoch_stats['commitment_loss'] += commitment_loss.item()
                 
             else:
-                # Pathloss map batch: train decoder, discriminator
+                # Pathloss map batch: train decoder
                 opt_disc.zero_grad()
                 pathloss_recon, _, _ = vqgan(pathloss_maps, mode='pathloss')
                 real_logits = discriminator_G(pathloss_maps)
                 fake_logits = discriminator_G(pathloss_recon.detach())
-                
-                # Cross-entropy loss for discriminator
                 real_labels = torch.ones_like(real_logits)
                 fake_labels = torch.zeros_like(fake_logits)
-                
                 d_real_loss = bce_loss(real_logits, real_labels)
                 d_fake_loss = bce_loss(fake_logits, fake_labels)
                 d_loss = (d_real_loss + d_fake_loss) * 0.5
-                
                 d_loss.backward()
                 opt_disc.step()
-                
-                # Train decoder with adversarial loss
                 opt_decoder.zero_grad()
-                
                 pathloss_recon, commitment_loss, _ = vqgan(pathloss_maps, mode='pathloss')
-                
-                # Reconstruction loss
                 rec_loss = l2_loss(pathloss_recon, pathloss_maps)
-                
-                # Adversarial loss: L_adv = -log(G(ŷ))
                 fake_logits_for_gen = discriminator_G(pathloss_recon)
                 adversarial_loss = bce_loss(fake_logits_for_gen, real_labels)
-                
                 # Total decoder loss: L_rec + λ * L_commit + L_adv
                 decoder_loss = (rec_loss + 
                                args.commitment_weight * commitment_loss + 
                                adversarial_loss)
-                
                 decoder_loss.backward()
                 opt_decoder.step()
-                
                 epoch_stats['pathloss_batches'] += 1
                 epoch_stats['decoder_loss'] += decoder_loss.item()
                 epoch_stats['disc_loss'] += d_loss.item()
                 epoch_stats['adversarial_loss'] += adversarial_loss.item()
             
-            # Update progress
             pbar.set_postfix({
                 'Enc': f"{epoch_stats['encoder_loss']/max(epoch_stats['scene_batches'],1):.3f}",
                 'Dec': f"{epoch_stats['decoder_loss']/max(epoch_stats['pathloss_batches'],1):.3f}",
                 'Disc': f"{epoch_stats['disc_loss']/max(epoch_stats['pathloss_batches'],1):.3f}"
             })
         
-        # Validation every 10 epochs
         if (epoch + 1) % 10 == 0:
             val_loss = validate_model(vqgan, val_loader, l2_loss, args)
             
@@ -559,31 +520,23 @@ def train_frozen_codebook_vqgan(args):
     print("Frozen codebook training completed!")
 
 def validate_model(vqgan, val_loader, loss_fn, args):
-    """Validation function"""
     vqgan.eval()
     total_loss = 0
     num_batches = 0
-    
     with torch.no_grad():
         for batch in val_loader:
             scene_tensors = batch['scene'].to(DEVICE)
             pathloss_maps = batch['pathloss'].to(DEVICE)
-            
-            # Validate both modes
             scene_recon, scene_commit, _ = vqgan(scene_tensors, mode='both')
             pathloss_recon, pathloss_commit, _ = vqgan(pathloss_maps, mode='both')
-            
             scene_loss = loss_fn(scene_recon, scene_tensors) + args.commitment_weight * scene_commit
             pathloss_loss = loss_fn(pathloss_recon, pathloss_maps) + args.commitment_weight * pathloss_commit
-            
             total_loss += (scene_loss + pathloss_loss).item()
             num_batches += 1
-    
     vqgan.train()
     return total_loss / num_batches
 
 def save_checkpoint(vqgan, discriminator, epoch, val_loss, args, filename):
-    """Save checkpoint"""
     torch.save({
         'epoch': epoch,
         'vqgan_state_dict': vqgan.state_dict(),
@@ -601,8 +554,7 @@ def save_checkpoint(vqgan, discriminator, epoch, val_loss, args, filename):
 
 def main():
     parser = argparse.ArgumentParser(description='Frozen Codebook VQGAN Pretraining')
-    
-    # Data paths - as specified in your request
+    # Data paths
     parser.add_argument('--scene_dir', type=str, 
                        default='.../ripple/dataset/...',
                        help='Directory containing 3-channel scene maps')
@@ -611,27 +563,22 @@ def main():
                        help='Directory containing pathloss maps')
     parser.add_argument('--pretrained_codebook_path', type=str, required=True,
                        help='Path to pretrained VQGAN checkpoint for codebook extraction')
-    
-    parser.add_argument('--embed_dim', type=int, default=256)
+    parser.add_argument('--embed_dim', type=int, default=64)
     parser.add_argument('--n_embed', type=int, default=8192)
     parser.add_argument('--ch', type=int, default=128)
     parser.add_argument('--image_size', type=int, default=256)
-    
     parser.add_argument('--epochs', type=int, default=100,
-                       help='Training epochs (100 as per paper)')
+                       help='Training epochs')
     parser.add_argument('--batch_size', type=int, default=16,
-                       help='Batch size (16 as per paper)')
+                       help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-4,
-                       help='Learning rate (1e-4 as per paper)')
+                       help='Learning rate')
     parser.add_argument('--commitment_weight', type=float, default=0.25,
                        help='Commitment loss weight λ (0.25)')
-    
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints_frozen')
-    
     args = parser.parse_args()
-    
-    print("FROZEN CODEBOOK VQGAN PRETRAINING")
+    print("VQGAN PRETRAINING")
     print("=" * 50)
     print("Based on paper methodology:")
     print("   Codebook: FROZEN (preserves LLaMA token space)")
@@ -641,9 +588,7 @@ def main():
     print("   Loss: L_rec + λ*L_commit + L_adv")
     print("   Training: Interleaved batches (scene/pathloss)")
     print("=" * 50)
-    
     train_frozen_codebook_vqgan(args)
 
 if __name__ == "__main__":
-
     main()
