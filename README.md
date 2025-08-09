@@ -1,4 +1,4 @@
-We implement our framework using PyTorch 2.6. All experiments are conducted on an HPC cluster equipped with NVIDIA B200 GPUs based on the Blackwell architecture. We use a publicly available dataset in our experiments. The code, models, and evaluation scripts will be publicly released after the blind review.
+All experiments are conducted on an HPC cluster equipped with NVIDIA B200 GPUs based on the Blackwell architecture. We use a publicly available dataset in our experiments. The code, models, and evaluation scripts will be publicly released after the blind review.
 
 All datasets used in our experiments are publicly available. The codebase, including models and evaluation scripts, will be released upon the completion of the blind review.
 
