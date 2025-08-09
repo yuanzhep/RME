@@ -27,7 +27,7 @@ class RepresentativeSampleVisualizer:
     
     def find_representative_samples(self, max_search=100):
         available_files = []
-        for b in range(0, 25):  # Buildings 1-25
+        for b in range(1, 20): 
             for s in range(50):  # Samples 0-49
                 filename = f"B{b}_Ant1_f1_S{s}.png"
                 input_file = os.path.join(self.input_path, filename)
@@ -45,11 +45,7 @@ class RepresentativeSampleVisualizer:
             return []
         
         print(f"Found {len(available_files)} available files")
-        
-        # Select 1-2 representative samples
-        # Strategy: pick from different buildings and different sample indices
         selected = []
-        
         if len(available_files) >= 1:
             early_candidates = [f for f in available_files if f.startswith('B1_') or f.startswith('B2_')]
             if early_candidates:
@@ -66,8 +62,6 @@ class RepresentativeSampleVisualizer:
                     selected.append(random.choice(different_building))
                 else:
                     selected.append(remaining[0])
-        
-        print(f"Selected representative samples: {selected}")
         return selected
     
     def load_sample(self, filename):
@@ -226,9 +220,7 @@ class RepresentativeSampleVisualizer:
             
         key_transforms = ['Original', 'Horizontal_Flip', 'Rotation_90', 'Noise_Medium', 
                          'Bright_Up', 'Elastic_Mild', 'Combo_Complex']
-        
         transforms_dict = self.create_augmentation_transforms()
-        
         fig, axes = plt.subplots(len(key_transforms), 4, figsize=(16, 3 * len(key_transforms)))
         fig.suptitle('Side-by-Side Sample Comparison - Key Augmentations', fontsize=16, y=0.98)
         
@@ -293,11 +285,6 @@ class RepresentativeSampleVisualizer:
         report_lines.append("")
         report_lines.append("USAGE NOTES:")
         report_lines.append("-" * 15)
-        report_lines.append("• Individual PNG files can be used directly in presentations")
-        report_lines.append("• Comprehensive grids show all augmentation effects at once") 
-        report_lines.append("• Difference maps highlight areas most affected by augmentations")
-        report_lines.append("• Statistics help quantify the impact of each augmentation")
-        
         report_filename = os.path.join(self.save_dir, "augmentation_report.txt")
         with open(report_filename, 'w') as f:
             f.write('\n'.join(report_lines))
@@ -331,10 +318,6 @@ class RepresentativeSampleVisualizer:
             except Exception as e:
                 print(f"Error loading {filename}: {str(e)}")
         
-        if not samples_data:
-            print("No samples could be loaded!")
-            return
-        
         total_augmentations = 0
         for sample_name, input_img, output_img in samples_data:
             print(f"\nProcessing {sample_name}...")
@@ -361,7 +344,7 @@ def main():
                        help='Directory to save results')
     parser.add_argument('--max_samples', type=int, default=2, choices=[1, 2],
                        help='Maximum number of representative samples (1 or 2)')
-    parser.add_argument('--random_seed', type=int, default=42,
+    parser.add_argument('--random_seed', type=int, default=3407,
                        help='Random seed for reproducible sample selection')
     
     args = parser.parse_args()
