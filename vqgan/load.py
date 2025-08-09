@@ -18,30 +18,24 @@ class ForwardWrapper(nn.Module):
     def forward(self, x):
         return getattr(self.vq_model, self.func)(x)
 
-
 def load_model(path):
-    # Load the pre-trained vq model from the hub
     vq_model = VQGANModel.from_pretrained(path)
     return vq_model
-
 
 def load_encoder(path):
     vq_model = load_model(path)
     encoder = ForwardWrapper(vq_model)
     return encoder
 
-
 def load_decoder(path):
     vq_model = load_model(path)
     decoder = ForwardWrapper(vq_model, func='decode')
     return decoder
 
-
 def load_decoder_code(path):
     vq_model = load_model(path)
     decoder = ForwardWrapper(vq_model, func='decode_code')
     return decoder
-
 
 def convert_decode_to_pil(rec_image):
     rec_image = 2.0 * rec_image - 1.0
@@ -51,7 +45,6 @@ def convert_decode_to_pil(rec_image):
     rec_image = rec_image.permute(0, 2, 3, 1).detach().cpu().numpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in rec_image]
     return pil_images
-
 
 class SixCrop(torch.nn.Module):
     def __init__(self, crop_size):
@@ -94,20 +87,16 @@ class SixCrop(torch.nn.Module):
             cb = F.crop(img, image_height - crop_height, center_left, crop_height, crop_width)
             return tl, tr, ct, bl, br, cb
         
-        # center = center_crop(img, [crop_height, crop_width])
-    
     def forward(self, img):
         return self.six_crop(img)
     
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(size={self.crop_size})"
 
-
 def six_crop_encode_transform(crop_size):
     t = transforms.Compose(
             [
                     SixCrop(crop_size),
-                    # transforms.Resize(256, interpolation=transforms.InterpolationMode.BILINEAR),
                     Lambda(lambda crops:
                            [transforms.Resize(256, interpolation=transforms.InterpolationMode.BILINEAR)(crop) for crop
                             in crops]),
@@ -115,7 +104,6 @@ def six_crop_encode_transform(crop_size):
             ]
     )
     return t
-
 
 encode_transform = transforms.Compose(
         [
@@ -162,8 +150,8 @@ encode_transform_rain_random_2 = transforms.Compose(
 )
 
 if __name__ == '__main__':
-    vq_model = load_model('/cache/ckpt/vqgan-f16-8192-laion')
-    image = Image.open("ILSVRC2012_val_00040846.JPEG")
+    vq_model = load_model('.../ckpt/vqgan-f16-8192')
+    image = Image.open(".../{}.png")
     pixel_values = encode_transform(image).unsqueeze(0)
     quantized_states, indices = vq_model.encode(pixel_values)
     rec_image = vq_model.decode(quantized_states)
