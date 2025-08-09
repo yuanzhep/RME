@@ -21,7 +21,7 @@ class AugmentedRadioMapDataset(Dataset):
                  transforms: Optional[Compose] = None,
                  device: str = "cuda",
                  normalize_input: bool = True,
-                 data_format: str = "CHW"):  # "CHW" or "HWC"
+                 data_format: str = "CHW"):  
         
         self.input_path = input_path
         self.output_path = output_path
@@ -294,3 +294,4 @@ def create_dataloaders(input_path: str,
     print(f"  Test:  {len(test_loader)} batches ({len(test_indices)} samples)")
     
     return train_loader, val_loader, test_loader
+
